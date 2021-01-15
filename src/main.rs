@@ -17,6 +17,19 @@ impl Shape {
             Shape::Sphere { .. } => Vec3::zero(),
         }
     }
+    fn inertia_tensor(&self) -> Mat3 {
+        match self {
+            Shape::Sphere { radius } => {
+                let i = 2.0 * radius * radius / 5.0;
+                // TODO: Add from_diagonal method to glam
+                Mat3::from_cols(
+                    Vec3::new(i, 0.0, 0.0),
+                    Vec3::new(0.0, i, 0.0),
+                    Vec3::new(0.0, 0.0, i),
+                )
+            }
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -38,6 +51,7 @@ struct Body {
     position: Vec3,
     orientation: Quat,
     linear_velocity: Vec3,
+    angular_velocity: Vec3,
     inv_mass: f32,
     elasticity: f32,
     shape: Shape,
@@ -46,9 +60,10 @@ struct Body {
 impl Default for Body {
     fn default() -> Self {
         Self {
-            position: Vec3::default(),
-            orientation: Quat::default(),
-            linear_velocity: Vec3::default(),
+            position: Vec3::zero(),
+            orientation: Quat::identity(),
+            linear_velocity: Vec3::zero(),
+            angular_velocity: Vec3::zero(),
             inv_mass: 1.0,
             elasticity: 0.8,
             shape: Shape::default(),
@@ -57,24 +72,54 @@ impl Default for Body {
 }
 
 impl Body {
-    pub fn centre_of_mass_world_space(&self) -> Vec3 {
+    pub fn centre_of_mass_world(&self) -> Vec3 {
         let com = self.shape.centre_of_mass();
         self.position + self.orientation * com
     }
-    pub fn centre_of_mass_model_space(&self) -> Vec3 {
+    pub fn centre_of_mass_local(&self) -> Vec3 {
         self.shape.centre_of_mass()
     }
-    pub fn world_space_to_body_space(&self, world_point: Vec3) -> Vec3 {
-        let tmp = world_point - self.centre_of_mass_world_space();
+    pub fn world_to_local(&self, world_point: Vec3) -> Vec3 {
+        let tmp = world_point - self.centre_of_mass_world();
         let inv_orientation = self.orientation.conjugate();
         let body_space = inv_orientation * tmp;
         body_space
     }
-    pub fn body_space_to_world_space(&self, body_point: Vec3) -> Vec3 {
-        let world_point = self.centre_of_mass_world_space() + self.orientation * body_point;
+    pub fn local_to_world(&self, body_point: Vec3) -> Vec3 {
+        let world_point = self.centre_of_mass_world() + self.orientation * body_point;
         world_point
     }
+    pub fn inv_intertia_tensor_world(&self) -> Mat3 {
+        let inv_inertia_tensor = self.inv_intertia_tensor_local();
+        let orientation = Mat3::from_quat(self.orientation);
+        orientation * inv_inertia_tensor * orientation.transpose()
+    }
+    pub fn inv_intertia_tensor_local(&self) -> Mat3 {
+        self.shape.inertia_tensor().inverse() * self.inv_mass
+    }
+    pub fn apply_impulse_angular(&mut self, impulse: Vec3) {
+        if self.has_infinite_mass() {
+            return;
+        }
+
+        // L = I w = r x p
+        // dL = I dw = r x J
+        // => dw = I^-1 * (r x J)
+        self.angular_velocity += self.inv_intertia_tensor_world() * impulse;
+
+        // clamp angular_velocity - 30 rad/s is fast enough for us
+        const MAX_ANGULAR_SPEED: f32 = 30.0;
+        const MAX_ANGULAR_SPEED_SQ: f32 = MAX_ANGULAR_SPEED * MAX_ANGULAR_SPEED;
+        if self.angular_velocity.length_squared() > MAX_ANGULAR_SPEED_SQ {
+            self.angular_velocity = self.angular_velocity.normalize() * MAX_ANGULAR_SPEED;
+        }
+    }
+
     pub fn apply_impulse_linear(&mut self, impulse: Vec3) {
+        if self.has_infinite_mass() {
+            return;
+        }
+
         // p = mv
         // dp = m dv = J
         // => dv = J / m
