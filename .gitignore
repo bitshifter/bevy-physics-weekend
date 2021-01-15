@@ -1,1 +1,4 @@
+/.cargo
 /target
+/Session.vim
+*.swp
