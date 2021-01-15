@@ -31,8 +31,6 @@ struct Contact {
     // time_of_impact: f32,
     handle_a: BodyHandle,
     handle_b: BodyHandle,
-    // body_a: &'a mut Body,
-    // body_b: &'a mut Body,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -41,6 +39,7 @@ struct Body {
     orientation: Quat,
     linear_velocity: Vec3,
     inv_mass: f32,
+    elasticity: f32,
     shape: Shape,
 }
 
@@ -51,6 +50,7 @@ impl Default for Body {
             orientation: Quat::default(),
             linear_velocity: Vec3::default(),
             inv_mass: 1.0,
+            elasticity: 0.8,
             shape: Shape::default(),
         }
     }
@@ -104,6 +104,7 @@ impl PhysicsScene {
         bodies.push(Body {
             position: Vec3::new(0.0, 10.0, 0.0),
             inv_mass: 1.0,
+            elasticity: 0.5,
             shape: Shape::Sphere { radius: 1.0 },
             ..Default::default()
         });
@@ -113,6 +114,7 @@ impl PhysicsScene {
         bodies.push(Body {
             position: Vec3::new(0.0, -1000.0, 0.0),
             inv_mass: 0.0,
+            elasticity: 1.0,
             shape: Shape::Sphere { radius: 1000.0 },
             ..Default::default()
         });
@@ -176,9 +178,11 @@ impl PhysicsScene {
         // reciprocal of total inverse body mass is used several times
         let rcp_total_inv_mass = 1.0 / (body_a.inv_mass + body_b.inv_mass);
 
+        let elasticity = body_a.elasticity * body_b.elasticity;
+
         // calculate the collision impulse
         let vab = body_a.linear_velocity - body_b.linear_velocity;
-        let impulse_j = -2.0 * vab.dot(contact.normal) * rcp_total_inv_mass;
+        let impulse_j = -(1.0 + elasticity) * vab.dot(contact.normal) * rcp_total_inv_mass;
         let vec_impulse_j = contact.normal * impulse_j;
 
         body_a.apply_impulse_linear(vec_impulse_j);
