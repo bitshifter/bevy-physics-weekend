@@ -20,6 +20,22 @@ impl Shape {
 }
 
 #[derive(Copy, Clone, Debug)]
+struct Contact {
+    world_point_a: Vec3,
+    world_point_b: Vec3,
+    // local_point_a: Vec3,
+    // local_point_b: Vec3,
+    normal: Vec3,
+
+    // separation_dist: f32,
+    // time_of_impact: f32,
+    handle_a: BodyHandle,
+    handle_b: BodyHandle,
+    // body_a: &'a mut Body,
+    // body_b: &'a mut Body,
+}
+
+#[derive(Copy, Clone, Debug)]
 struct Body {
     position: Vec3,
     orientation: Quat,
@@ -59,27 +75,16 @@ impl Body {
         world_point
     }
     pub fn apply_impulse_linear(&mut self, impulse: Vec3) {
-        if self.inv_mass != 0.0 {
-            // p = mv
-            // dp = m dv = J
-            // => dv = J / m
-            self.linear_velocity += impulse * self.inv_mass;
-        }
+        // p = mv
+        // dp = m dv = J
+        // => dv = J / m
+        self.linear_velocity += impulse * self.inv_mass;
     }
     pub fn integrate(&mut self, delta_seconds: f32) {
         self.position += self.linear_velocity * delta_seconds;
     }
-    pub fn intersects(&self, other: &Self) -> bool {
-        let shapes = (self.shape, other.shape);
-        match shapes {
-            (Shape::Sphere { radius: radius_a }, Shape::Sphere { radius: radius_b }) => {
-                let ab = self.position - other.position;
-                let radius_ab = radius_a + radius_b;
-                let radius_ab_sq = radius_ab * radius_ab;
-                let ab_len_sq = ab.length_squared();
-                return ab_len_sq <= radius_ab_sq;
-            } // _ => unreachable!(),
-        }
+    pub fn has_infinite_mass(&self) -> bool {
+        return self.inv_mass == 0.0;
     }
 }
 
@@ -126,9 +131,72 @@ impl PhysicsScene {
         }
     }
 
+    fn intersect(&mut self, index_a: usize, index_b: usize) -> Option<Contact> {
+        let (body_a, body_b) = self.get_body_pair_mut_from_indices(index_a, index_b);
+
+        // skip body pairs with infinite mass
+        if body_a.has_infinite_mass() && body_b.has_infinite_mass() {
+            return None;
+        }
+
+        // let body_a = &self.bodies[index_a];
+        // let body_b = &self.bodies[index_b];
+        let shapes = (body_a.shape, body_b.shape);
+        match shapes {
+            (Shape::Sphere { radius: radius_a }, Shape::Sphere { radius: radius_b }) => {
+                let ab = body_b.position - body_a.position;
+                let radius_ab = radius_a + radius_b;
+                let radius_ab_sq = radius_ab * radius_ab;
+                let ab_len_sq = ab.length_squared();
+                if ab_len_sq <= radius_ab_sq {
+                    let normal = ab.normalize();
+                    Some(Contact {
+                        world_point_a: body_a.position + normal * radius_a,
+                        world_point_b: body_b.position - normal * radius_b,
+                        normal,
+                        // local_point_a: Vec3::zero(),
+                        // local_point_b: Vec3::zero(),
+                        handle_a: BodyHandle(index_a as u32),
+                        handle_b: BodyHandle(index_b as u32),
+                        // body_a,
+                        // body_b,
+                    })
+                } else {
+                    None
+                }
+            } // _ => unreachable!(),
+        }
+    }
+
+    fn resolve_contact(&mut self, contact: &Contact) {
+        let (body_a, body_b) = self.get_body_pair_mut(&contact.handle_a, &contact.handle_b);
+        // body_a.linear_velocity = Vec3::zero();
+        // body_b.linear_velocity = Vec3::zero();
+
+        // reciprocal of total inverse body mass is used several times
+        let rcp_total_inv_mass = 1.0 / (body_a.inv_mass + body_b.inv_mass);
+
+        // calculate the collision impulse
+        let vab = body_a.linear_velocity - body_b.linear_velocity;
+        let impulse_j = -2.0 * vab.dot(contact.normal) * rcp_total_inv_mass;
+        let vec_impulse_j = contact.normal * impulse_j;
+
+        body_a.apply_impulse_linear(vec_impulse_j);
+        body_b.apply_impulse_linear(-vec_impulse_j);
+
+        // also move colliding objects to just outside of each other
+        let t_a = body_a.inv_mass * rcp_total_inv_mass;
+        let t_b = body_b.inv_mass * rcp_total_inv_mass;
+
+        let ds = contact.world_point_b - contact.world_point_a;
+
+        body_a.position += ds * t_a;
+        body_b.position -= ds * t_b;
+    }
+
     pub fn update(&mut self, delta_seconds: f32) {
         for body in &mut self.bodies {
-            if body.inv_mass != 0.0 {
+            if !body.has_infinite_mass() {
                 // gravity needs to be an impulse
                 // I = dp, F = dp/dt => dp = F * dt => I = F * dt
                 // F = mgs
@@ -139,13 +207,10 @@ impl PhysicsScene {
         }
 
         // TODO: is there a more idomatic Rust way of doing this?
-        for i in 0..self.bodies.len() {
-            // let body_a = &mut self.bodies[i];
-            for j in (i + 1)..self.bodies.len() {
-                // let body_b = &mut self.bodies[j];
-                if self.bodies[i].intersects(&self.bodies[j]) {
-                    self.bodies[i].linear_velocity = Vec3::zero();
-                    self.bodies[j].linear_velocity = Vec3::zero();
+        for a in 0..self.bodies.len() {
+            for b in (a + 1)..self.bodies.len() {
+                if let Some(contact) = self.intersect(a, b) {
+                    self.resolve_contact(&contact);
                 }
             }
         }
@@ -153,6 +218,45 @@ impl PhysicsScene {
         for body in &mut self.bodies {
             body.integrate(delta_seconds);
         }
+
+        for (index, body) in self.bodies.iter().enumerate() {
+            println!(
+                "index: {} position: {} dt: {}",
+                index, body.position, delta_seconds
+            );
+        }
+    }
+
+    fn get_body_pair_mut_from_indices(
+        &mut self,
+        index_a: usize,
+        index_b: usize,
+    ) -> (&mut Body, &mut Body) {
+        match index_a.cmp(&index_b) {
+            std::cmp::Ordering::Less => {
+                let mut iter = self.bodies.iter_mut();
+                let body_a = iter.nth(index_a).unwrap();
+                let body_b = iter.nth(index_b - index_a - 1).unwrap();
+                (body_a, body_b)
+            }
+            std::cmp::Ordering::Greater => {
+                let mut iter = self.bodies.iter_mut();
+                let body_b = iter.nth(index_b).unwrap();
+                let body_a = iter.nth(index_a - index_b - 1).unwrap();
+                (body_a, body_b)
+            }
+            std::cmp::Ordering::Equal => {
+                panic!("get_body_pair_mut called with the same index {}", index_a)
+            }
+        }
+    }
+
+    pub fn get_body_pair_mut(
+        &mut self,
+        index_a: &BodyHandle,
+        index_b: &BodyHandle,
+    ) -> (&mut Body, &mut Body) {
+        self.get_body_pair_mut_from_indices(index_a.0 as usize, index_b.0 as usize)
     }
 
     pub fn get_body(&self, handle: &BodyHandle) -> &Body {
@@ -273,10 +377,13 @@ fn setup_rendering(
         let body = physics_scene.get_body(body_handle);
         let color = physics_scene.get_color(body_handle);
         let mesh = match body.shape {
-            Shape::Sphere { radius } => meshes.add(Mesh::from(shape::Icosphere {
-                radius,
-                ..Default::default()
-            })),
+            Shape::Sphere { radius } => {
+                let subdivisions = usize::max(5, (radius / 10.0) as usize).min(10);
+                meshes.add(Mesh::from(shape::Icosphere {
+                    radius,
+                    subdivisions,
+                }))
+            }
         };
         commands
             .spawn(PbrBundle {
@@ -293,7 +400,6 @@ fn main() {
         .add_resource(Msaa { samples: 4 })
         .add_resource(PhysicsScene::new())
         .add_plugins(DefaultPlugins)
-        // .add_plugin(HelloPlugin)
         .add_startup_system(setup_rendering.system())
         .add_system(physics_update_system.system())
         .add_system(copy_transforms_system.system())
