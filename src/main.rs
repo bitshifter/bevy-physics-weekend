@@ -1,5 +1,19 @@
 use bevy::prelude::*;
 
+trait Mat3Ex {
+    fn from_diagonal(diagonal: Vec3) -> Self;
+}
+
+impl Mat3Ex for Mat3 {
+    fn from_diagonal(diagonal: Vec3) -> Self {
+        Self::from_cols(
+            Vec3::new(diagonal.x, 0.0, 0.0),
+            Vec3::new(0.0, diagonal.y, 0.0),
+            Vec3::new(0.0, 0.0, diagonal.z),
+        )
+    }
+}
+
 #[derive(Copy, Clone, Debug)]
 enum Shape {
     Sphere { radius: f32 },
@@ -21,12 +35,7 @@ impl Shape {
         match self {
             Shape::Sphere { radius } => {
                 let i = 2.0 * radius * radius / 5.0;
-                // TODO: Add from_diagonal method to glam
-                Mat3::from_cols(
-                    Vec3::new(i, 0.0, 0.0),
-                    Vec3::new(0.0, i, 0.0),
-                    Vec3::new(0.0, 0.0, i),
-                )
+                Mat3::from_diagonal(Vec3::splat(i))
             }
         }
     }
@@ -65,7 +74,7 @@ impl Default for Body {
             linear_velocity: Vec3::zero(),
             angular_velocity: Vec3::zero(),
             inv_mass: 1.0,
-            elasticity: 0.8,
+            elasticity: 0.5,
             shape: Shape::default(),
         }
     }
@@ -76,27 +85,52 @@ impl Body {
         let com = self.shape.centre_of_mass();
         self.position + self.orientation * com
     }
+
     pub fn centre_of_mass_local(&self) -> Vec3 {
         self.shape.centre_of_mass()
     }
+
     pub fn world_to_local(&self, world_point: Vec3) -> Vec3 {
         let tmp = world_point - self.centre_of_mass_world();
         let inv_orientation = self.orientation.conjugate();
         let body_space = inv_orientation * tmp;
         body_space
     }
+
     pub fn local_to_world(&self, body_point: Vec3) -> Vec3 {
         let world_point = self.centre_of_mass_world() + self.orientation * body_point;
         world_point
     }
+
     pub fn inv_intertia_tensor_world(&self) -> Mat3 {
         let inv_inertia_tensor = self.inv_intertia_tensor_local();
         let orientation = Mat3::from_quat(self.orientation);
         orientation * inv_inertia_tensor * orientation.transpose()
     }
+
     pub fn inv_intertia_tensor_local(&self) -> Mat3 {
         self.shape.inertia_tensor().inverse() * self.inv_mass
     }
+
+    pub fn apply_impulse(&mut self, impulse_point: Vec3, impulse: Vec3) {
+        if self.has_infinite_mass() {
+            return;
+        }
+
+        // impulse_point is the world space location of the application of the impulse
+        // impulse is the world space direction and magnitude of the impulse
+        self.apply_impulse_linear(impulse);
+
+        // applying impulses must produce torques through the centre of mass
+        let position = self.centre_of_mass_world();
+
+        let r = impulse_point - position;
+        // this is in world space
+        let dl = r.cross(impulse);
+
+        self.apply_impulse_angular(dl);
+    }
+
     pub fn apply_impulse_angular(&mut self, impulse: Vec3) {
         if self.has_infinite_mass() {
             return;
@@ -125,9 +159,44 @@ impl Body {
         // => dv = J / m
         self.linear_velocity += impulse * self.inv_mass;
     }
+
     pub fn integrate(&mut self, delta_seconds: f32) {
         self.position += self.linear_velocity * delta_seconds;
+
+        // we have an angular velocity around the centre of mass, this needs to be converted to
+        // relative body position. This way we can properly update the orientation of the model
+
+        let position_com = self.centre_of_mass_world();
+        let com_to_position = self.position - position_com;
+
+        // total torque is equal to external applied torques + internal torque (precession)
+        // T = T_external + omega x I * omega
+        // T_external = 0 because it was applied in the collision response function
+        // T = Ia = w x I * w
+        // a = I^-1 (w x I * w)
+        let orientation = Mat3::from_quat(self.orientation);
+        let inertia_tensor = orientation * self.shape.inertia_tensor() * orientation.transpose();
+        let alpha = inertia_tensor.inverse()
+            * (self
+                .angular_velocity
+                .cross(inertia_tensor * self.angular_velocity));
+        self.angular_velocity += alpha * delta_seconds;
+
+        // update orientation
+        let d_angle = self.angular_velocity * delta_seconds;
+        let angle = d_angle.length();
+        let inv_angle = angle.recip();
+        let dq = if inv_angle.is_finite() {
+            Quat::from_axis_angle(d_angle * inv_angle, angle)
+        } else {
+            Quat::identity()
+        };
+        self.orientation = (dq * self.orientation).normalize();
+
+        // now get the new body position
+        self.position = position_com + dq * com_to_position;
     }
+
     pub fn has_infinite_mass(&self) -> bool {
         return self.inv_mass == 0.0;
     }
@@ -217,23 +286,35 @@ impl PhysicsScene {
 
     fn resolve_contact(&mut self, contact: &Contact) {
         let (body_a, body_b) = self.get_body_pair_mut(&contact.handle_a, &contact.handle_b);
-        // body_a.linear_velocity = Vec3::zero();
-        // body_b.linear_velocity = Vec3::zero();
-
-        // reciprocal of total inverse body mass is used several times
-        let rcp_total_inv_mass = 1.0 / (body_a.inv_mass + body_b.inv_mass);
 
         let elasticity = body_a.elasticity * body_b.elasticity;
 
+        let inv_inertia_world_a = body_a.inv_intertia_tensor_world();
+        let inv_inertia_world_b = body_b.inv_intertia_tensor_world();
+
+        let ra = contact.world_point_a - body_a.centre_of_mass_world();
+        let rb = contact.world_point_b - body_b.centre_of_mass_world();
+
+        let angular_j_a = (inv_inertia_world_a * ra.cross(contact.normal)).cross(ra);
+        let angular_j_b = (inv_inertia_world_b * rb.cross(contact.normal)).cross(rb);
+        let angular_factor = (angular_j_a + angular_j_b).dot(contact.normal);
+
+        // calculate the world space velocity of the motion and rotation
+        let vel_a = body_a.linear_velocity + body_a.angular_velocity.cross(ra);
+        let vel_b = body_b.linear_velocity + body_b.angular_velocity.cross(rb);
+
         // calculate the collision impulse
-        let vab = body_a.linear_velocity - body_b.linear_velocity;
-        let impulse_j = -(1.0 + elasticity) * vab.dot(contact.normal) * rcp_total_inv_mass;
+        let vab = vel_a - vel_b;
+        let total_inv_mass = body_a.inv_mass + body_b.inv_mass;
+        let impulse_j =
+            -(1.0 + elasticity) * vab.dot(contact.normal) / (total_inv_mass + angular_factor);
         let vec_impulse_j = contact.normal * impulse_j;
 
-        body_a.apply_impulse_linear(vec_impulse_j);
-        body_b.apply_impulse_linear(-vec_impulse_j);
+        body_a.apply_impulse(contact.world_point_a, vec_impulse_j);
+        body_b.apply_impulse(contact.world_point_b, -vec_impulse_j);
 
         // also move colliding objects to just outside of each other
+        let rcp_total_inv_mass = 1.0 / (body_a.inv_mass + body_b.inv_mass);
         let t_a = body_a.inv_mass * rcp_total_inv_mass;
         let t_b = body_b.inv_mass * rcp_total_inv_mass;
 
