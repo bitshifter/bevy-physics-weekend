@@ -63,6 +63,7 @@ struct Body {
     angular_velocity: Vec3,
     inv_mass: f32,
     elasticity: f32,
+    friction: f32,
     shape: Shape,
 }
 
@@ -75,6 +76,7 @@ impl Default for Body {
             angular_velocity: Vec3::zero(),
             inv_mass: 1.0,
             elasticity: 0.5,
+            friction: 0.5,
             shape: Shape::default(),
         }
     }
@@ -217,8 +219,10 @@ impl PhysicsScene {
         let mut colors = Vec::with_capacity(2);
         bodies.push(Body {
             position: Vec3::new(0.0, 10.0, 0.0),
+            linear_velocity: Vec3::new(1.0, 0.0, 0.0),
             inv_mass: 1.0,
-            elasticity: 0.5,
+            elasticity: 0.0,
+            friction: 0.5,
             shape: Shape::Sphere { radius: 1.0 },
             ..Default::default()
         });
@@ -229,6 +233,7 @@ impl PhysicsScene {
             position: Vec3::new(0.0, -1000.0, 0.0),
             inv_mass: 0.0,
             elasticity: 1.0,
+            friction: 0.0,
             shape: Shape::Sphere { radius: 1000.0 },
             ..Default::default()
         });
@@ -313,12 +318,36 @@ impl PhysicsScene {
         body_a.apply_impulse(contact.world_point_a, vec_impulse_j);
         body_b.apply_impulse(contact.world_point_b, -vec_impulse_j);
 
-        // also move colliding objects to just outside of each other
-        let rcp_total_inv_mass = 1.0 / (body_a.inv_mass + body_b.inv_mass);
+        // calculate the impulse caused by friction
+        let friction = body_a.friction * body_b.friction;
+
+        // find the normal direction of the velocity with respect to the normal of the collision
+        let vel_normal = contact.normal * contact.normal.dot(vab);
+
+        // find the tangent direction of the velocity with respect to the normal of the collision
+        let vel_tan = vab - vel_normal;
+
+        // get the tangential velocities relative to the other body
+        let rel_vel_tan = vel_tan.normalize();
+
+        let inertia_a = (inv_inertia_world_a * ra.cross(rel_vel_tan)).cross(ra);
+        let inertia_b = (inv_inertia_world_b * rb.cross(rel_vel_tan)).cross(rb);
+        let inv_inertia = (inertia_a + inertia_b).dot(rel_vel_tan);
+
+        // calculate the tangential impulse for friction
+        let reduced_mass = 1.0 / (total_inv_mass + inv_inertia);
+        let impulse_friction = vel_tan * (reduced_mass * friction);
+
+        // apply kinetic friction
+        body_a.apply_impulse(contact.world_point_a, -impulse_friction);
+        body_b.apply_impulse(contact.world_point_b, impulse_friction);
+
+        // also move colliding objects to just outside of each other (projection method)
+        let ds = contact.world_point_b - contact.world_point_a;
+
+        let rcp_total_inv_mass = 1.0 / total_inv_mass;
         let t_a = body_a.inv_mass * rcp_total_inv_mass;
         let t_b = body_b.inv_mass * rcp_total_inv_mass;
-
-        let ds = contact.world_point_b - contact.world_point_a;
 
         body_a.position += ds * t_a;
         body_b.position -= ds * t_b;
@@ -393,10 +422,6 @@ impl PhysicsScene {
         &self.bodies[handle.0 as usize]
     }
 
-    pub fn get_body_mut(&mut self, handle: &BodyHandle) -> &mut Body {
-        &mut self.bodies[handle.0 as usize]
-    }
-
     pub fn handles(&self) -> &Vec<BodyHandle> {
         &self.handles
     }
@@ -405,32 +430,6 @@ impl PhysicsScene {
         self.colors[handle.0 as usize]
     }
 }
-
-// fn body_update(time: Res<Time>, mut body_query: Query<(&mut Body, &mut Transform)>, collide: Query<&Body>) {
-//     let delta_seconds = f32::min(1.0, time.delta_seconds());
-
-//     for (mut body, mut transform) in body_query.iter_mut() {
-//         if body.inv_mass != 0.0 {
-//             // gravity needs to be an impulse
-//             // I = dp, F = dp/dt => dp = F * dt => I = F * dt
-//             // F = mgs
-//             let impulse_gravity =
-//                 Vec3::new(0.0, -10.0, 0.0) * body.inv_mass.recip() * delta_seconds;
-//             body.apply_impulse_linear(impulse_gravity);
-//         }
-//         // collision check - sub optimal
-//         for other_body in collide.iter() {
-//             if body.id != other_body.id {
-//                 if body.intersect(other_body) {
-//                 }
-//             }
-//         }
-//         // position update
-//         body.integrate(delta_seconds);
-//         transform.translation = body.position;
-//         transform.rotation = body.orientation;
-//     }
-// }
 
 fn physics_update_system(time: Res<Time>, mut scene: ResMut<PhysicsScene>) {
     let delta_seconds = f32::min(1.0, time.delta_seconds());
