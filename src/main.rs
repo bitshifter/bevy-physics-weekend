@@ -41,16 +41,103 @@ impl Shape {
     }
 }
 
+fn ray_sphere_intersect(
+    ray_start: Vec3,
+    ray_dir: Vec3,
+    sphere_centre: Vec3,
+    sphere_radius: f32,
+) -> Option<(f32, f32)> {
+    let m = sphere_centre - ray_start;
+    let a = ray_dir.dot(ray_dir);
+    let b = m.dot(ray_dir);
+    let c = m.dot(m) - sphere_radius * sphere_radius;
+
+    let delta = b * b - a * c;
+
+    if delta < 0.0 {
+        None
+    } else {
+        let inv_a = 1.0 / a;
+        let delta_root = delta.sqrt();
+        let t1 = inv_a * (b - delta_root);
+        let t2 = inv_a * (b + delta_root);
+        Some((t1, t2))
+    }
+}
+
+fn sphere_sphere_dynamic(
+    radius_a: f32,
+    radius_b: f32,
+    pos_a: Vec3,
+    pos_b: Vec3,
+    vel_a: Vec3,
+    vel_b: Vec3,
+    dt: f32,
+) -> Option<(Vec3, Vec3, f32)> {
+    let relative_velocity = vel_a - vel_b;
+
+    let start_pt_a = pos_a;
+    let end_pt_a = pos_a + relative_velocity * dt;
+    let ray_dir = end_pt_a - start_pt_a;
+
+    let mut t0 = 0.0;
+    let mut t1 = 0.0;
+
+    const EPSILON: f32 = 0.001;
+    const EPSILON_SQ: f32 = EPSILON * EPSILON;
+    if ray_dir.length_squared() < EPSILON_SQ {
+        // ray is too short, just check if intersecting
+        let ab = pos_b - pos_a;
+        let radius = radius_a + radius_b + EPSILON;
+        if ab.length_squared() > radius * radius {
+            return None;
+        }
+    } else if let Some(toi) = ray_sphere_intersect(pos_a, ray_dir, pos_b, radius_a + radius_b) {
+        t0 = toi.0;
+        t1 = toi.1;
+    } else {
+        return None;
+    }
+
+    // Change from [0,1] range to [0,dt] range
+    t0 *= dt;
+    t1 *= dt;
+
+    // If the collision is only in the past, then there's not future collision this frame
+    if t1 < 0.0 {
+        return None;
+    }
+
+    // Get the earliest positive time of impact
+    let toi = if t0 < 0.0 { 0.0 } else { t0 };
+
+    // If the earliest collision is too far in the future, then there's no collision this frame
+    if toi > dt {
+        return None;
+    }
+
+    // get the points on the respective points of collision
+    let new_pos_a = pos_a + vel_a * toi;
+    let new_pos_b = pos_b + vel_b * toi;
+    let ab = (new_pos_b - new_pos_a).normalize();
+
+    let pt_on_a = new_pos_a + ab * radius_a;
+    let pt_on_b = new_pos_b - ab * radius_b;
+
+    Some((pt_on_a, pt_on_b, toi))
+}
+
 #[derive(Copy, Clone, Debug)]
 struct Contact {
     world_point_a: Vec3,
     world_point_b: Vec3,
-    // local_point_a: Vec3,
-    // local_point_b: Vec3,
+    local_point_a: Vec3,
+    local_point_b: Vec3,
     normal: Vec3,
 
-    // separation_dist: f32,
-    // time_of_impact: f32,
+    separation_dist: f32,
+    time_of_impact: f32,
+
     handle_a: BodyHandle,
     handle_b: BodyHandle,
 }
@@ -162,7 +249,7 @@ impl Body {
         self.linear_velocity += impulse * self.inv_mass;
     }
 
-    pub fn integrate(&mut self, delta_seconds: f32) {
+    pub fn update(&mut self, delta_seconds: f32) {
         self.position += self.linear_velocity * delta_seconds;
 
         // we have an angular velocity around the centre of mass, this needs to be converted to
@@ -211,6 +298,7 @@ struct PhysicsScene {
     bodies: Vec<Body>,
     colors: Vec<Color>,
     handles: Vec<BodyHandle>,
+    contacts: Vec<Contact>,
 }
 
 impl PhysicsScene {
@@ -218,12 +306,22 @@ impl PhysicsScene {
         let mut bodies = Vec::with_capacity(2);
         let mut colors = Vec::with_capacity(2);
         bodies.push(Body {
-            position: Vec3::new(0.0, 10.0, 0.0),
-            linear_velocity: Vec3::new(1.0, 0.0, 0.0),
+            position: Vec3::new(-3.0, 3.0, 0.0),
+            linear_velocity: Vec3::new(0.0, 0.0, 0.0),
             inv_mass: 1.0,
             elasticity: 0.0,
             friction: 0.5,
-            shape: Shape::Sphere { radius: 1.0 },
+            shape: Shape::Sphere { radius: 0.5 },
+            ..Default::default()
+        });
+        colors.push(Color::rgb(0.8, 0.7, 0.6));
+        bodies.push(Body {
+            position: Vec3::new(0.0, 3.0, 0.0),
+            linear_velocity: Vec3::new(0.0, 0.0, 0.0),
+            inv_mass: 0.0,
+            elasticity: 0.0,
+            friction: 0.5,
+            shape: Shape::Sphere { radius: 0.5 },
             ..Default::default()
         });
         colors.push(Color::rgb(0.8, 0.7, 0.6));
@@ -245,14 +343,17 @@ impl PhysicsScene {
             .map(|(index, _body)| BodyHandle(index as u32))
             .collect();
 
+        let contacts = Vec::with_capacity(bodies.len() * bodies.len());
+
         Self {
             bodies,
             colors,
             handles,
+            contacts,
         }
     }
 
-    fn intersect(&mut self, index_a: usize, index_b: usize) -> Option<Contact> {
+    fn intersect(&mut self, index_a: usize, index_b: usize, delta_seconds: f32) -> Option<Contact> {
         let (body_a, body_b) = self.get_body_pair_mut_from_indices(index_a, index_b);
 
         // skip body pairs with infinite mass
@@ -260,45 +361,68 @@ impl PhysicsScene {
             return None;
         }
 
-        // let body_a = &self.bodies[index_a];
-        // let body_b = &self.bodies[index_b];
         let shapes = (body_a.shape, body_b.shape);
         match shapes {
             (Shape::Sphere { radius: radius_a }, Shape::Sphere { radius: radius_b }) => {
-                let ab = body_b.position - body_a.position;
-                let radius_ab = radius_a + radius_b;
-                let radius_ab_sq = radius_ab * radius_ab;
-                let ab_len_sq = ab.length_squared();
-                if ab_len_sq <= radius_ab_sq {
-                    let normal = ab.normalize();
+                if let Some((world_point_a, world_point_b, time_of_impact)) = sphere_sphere_dynamic(
+                    radius_a,
+                    radius_b,
+                    body_a.position,
+                    body_b.position,
+                    body_a.linear_velocity,
+                    body_b.linear_velocity,
+                    delta_seconds,
+                ) {
+                    // step bodies forward to get local space collision points
+                    body_a.update(time_of_impact);
+                    body_b.update(time_of_impact);
+
+                    // convert world space contacts to local space
+                    let local_point_a = body_a.world_to_local(world_point_a);
+                    let local_point_b = body_b.world_to_local(world_point_b);
+
+                    let normal = (body_a.position - body_b.position).normalize();
+
+                    // unwind time step
+                    body_a.update(-time_of_impact);
+                    body_b.update(-time_of_impact);
+
+                    // calculate the separation distance
+                    let ab = body_a.position - body_b.position;
+                    let separation_dist = ab.length() - (radius_a + radius_b);
+
                     Some(Contact {
-                        world_point_a: body_a.position + normal * radius_a,
-                        world_point_b: body_b.position - normal * radius_b,
+                        world_point_a,
+                        world_point_b,
+                        local_point_a,
+                        local_point_b,
                         normal,
-                        // local_point_a: Vec3::zero(),
-                        // local_point_b: Vec3::zero(),
+                        separation_dist,
+                        time_of_impact,
                         handle_a: BodyHandle(index_a as u32),
                         handle_b: BodyHandle(index_b as u32),
-                        // body_a,
-                        // body_b,
                     })
                 } else {
                     None
                 }
-            } // _ => unreachable!(),
+            }
         }
     }
 
     fn resolve_contact(&mut self, contact: &Contact) {
         let (body_a, body_b) = self.get_body_pair_mut(&contact.handle_a, &contact.handle_b);
+        debug_assert!(!body_a.has_infinite_mass() && !body_b.has_infinite_mass());
+
+        let point_on_a = body_a.local_to_world(contact.local_point_a);
+        let point_on_b = body_b.local_to_world(contact.local_point_b);
 
         let elasticity = body_a.elasticity * body_b.elasticity;
 
         let inv_inertia_world_a = body_a.inv_intertia_tensor_world();
         let inv_inertia_world_b = body_b.inv_intertia_tensor_world();
 
-        let ra = contact.world_point_a - body_a.centre_of_mass_world();
-        let rb = contact.world_point_b - body_b.centre_of_mass_world();
+        let ra = point_on_a - body_a.centre_of_mass_world();
+        let rb = point_on_b - body_b.centre_of_mass_world();
 
         let angular_j_a = (inv_inertia_world_a * ra.cross(contact.normal)).cross(ra);
         let angular_j_b = (inv_inertia_world_b * rb.cross(contact.normal)).cross(rb);
@@ -312,11 +436,11 @@ impl PhysicsScene {
         let vab = vel_a - vel_b;
         let total_inv_mass = body_a.inv_mass + body_b.inv_mass;
         let impulse_j =
-            -(1.0 + elasticity) * vab.dot(contact.normal) / (total_inv_mass + angular_factor);
+            (1.0 + elasticity) * vab.dot(contact.normal) / (total_inv_mass + angular_factor);
         let vec_impulse_j = contact.normal * impulse_j;
 
-        body_a.apply_impulse(contact.world_point_a, vec_impulse_j);
-        body_b.apply_impulse(contact.world_point_b, -vec_impulse_j);
+        body_a.apply_impulse(point_on_a, -vec_impulse_j);
+        body_b.apply_impulse(point_on_b, vec_impulse_j);
 
         // calculate the impulse caused by friction
         let friction = body_a.friction * body_b.friction;
@@ -336,21 +460,23 @@ impl PhysicsScene {
 
         // calculate the tangential impulse for friction
         let reduced_mass = 1.0 / (total_inv_mass + inv_inertia);
-        let impulse_friction = vel_tan * (reduced_mass * friction);
+        let impulse_friction = vel_tan * reduced_mass * friction;
 
         // apply kinetic friction
-        body_a.apply_impulse(contact.world_point_a, -impulse_friction);
-        body_b.apply_impulse(contact.world_point_b, impulse_friction);
+        body_a.apply_impulse(point_on_a, -impulse_friction);
+        body_b.apply_impulse(point_on_b, impulse_friction);
 
         // also move colliding objects to just outside of each other (projection method)
-        let ds = contact.world_point_b - contact.world_point_a;
+        if contact.time_of_impact == 0.0 {
+            let ds = point_on_b - point_on_a;
 
-        let rcp_total_inv_mass = 1.0 / total_inv_mass;
-        let t_a = body_a.inv_mass * rcp_total_inv_mass;
-        let t_b = body_b.inv_mass * rcp_total_inv_mass;
+            let rcp_total_inv_mass = 1.0 / total_inv_mass;
+            let t_a = body_a.inv_mass * rcp_total_inv_mass;
+            let t_b = body_b.inv_mass * rcp_total_inv_mass;
 
-        body_a.position += ds * t_a;
-        body_b.position -= ds * t_b;
+            body_a.position += ds * t_a;
+            body_b.position -= ds * t_b;
+        }
     }
 
     pub fn update(&mut self, delta_seconds: f32) {
@@ -365,17 +491,49 @@ impl PhysicsScene {
             }
         }
 
+        // move contacts ownership to local
+        let mut contacts = Vec::new();
+        std::mem::swap(&mut contacts, &mut self.contacts);
+
         // TODO: is there a more idomatic Rust way of doing this?
+        self.contacts.clear();
+        self.contacts.reserve(self.bodies.len() * self.bodies.len());
         for a in 0..self.bodies.len() {
             for b in (a + 1)..self.bodies.len() {
-                if let Some(contact) = self.intersect(a, b) {
-                    self.resolve_contact(&contact);
+                if let Some(contact) = self.intersect(a, b, delta_seconds) {
+                    self.contacts.push(contact);
                 }
             }
         }
 
+        // sort the times of impact from earliest to latest
+        self.contacts.sort_by(|a, b| {
+            if a.time_of_impact < b.time_of_impact {
+                std::cmp::Ordering::Less
+            } else if a.time_of_impact == b.time_of_impact {
+                std::cmp::Ordering::Equal
+            } else {
+                std::cmp::Ordering::Greater
+            }
+        });
+
+        let mut accumulated_time = 0.0;
+        for contact in &contacts {
+            let contact_time = contact.time_of_impact - accumulated_time;
+
+            // position update
+            for body in &mut self.bodies {
+                body.update(contact_time)
+            }
+
+            self.resolve_contact(contact);
+            accumulated_time += contact_time;
+        }
+
+        // update positions for the rest of this frame's time
+        let time_remaining = delta_seconds - accumulated_time;
         for body in &mut self.bodies {
-            body.integrate(delta_seconds);
+            body.update(time_remaining);
         }
 
         for (index, body) in self.bodies.iter().enumerate() {
@@ -384,6 +542,9 @@ impl PhysicsScene {
                 index, body.position, delta_seconds
             );
         }
+
+        // move contacts ownership back to self to avoid re-allocating next update
+        std::mem::swap(&mut contacts, &mut self.contacts);
     }
 
     fn get_body_pair_mut_from_indices(
@@ -432,7 +593,8 @@ impl PhysicsScene {
 }
 
 fn physics_update_system(time: Res<Time>, mut scene: ResMut<PhysicsScene>) {
-    let delta_seconds = f32::min(1.0, time.delta_seconds());
+    //let delta_seconds = f32::min(1.0, time.delta_seconds());
+    let delta_seconds = 1.0 / 60.0;
     scene.update(delta_seconds);
 }
 
