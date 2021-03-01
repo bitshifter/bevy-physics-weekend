@@ -14,6 +14,62 @@ impl Mat3Ex for Mat3 {
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq)]
+struct Bounds {
+    mins: Vec3,
+    maxs: Vec3,
+}
+
+impl Bounds {
+    // fn new() -> Bounds {
+    //     Bounds {
+    //         mins: Vec3::splat(std::f32::MAX),
+    //         maxs: Vec3::splat(-std::f32::MAX),
+    //     }
+    // }
+    // fn clear(&mut self) {
+    //     *self = Self::new();
+    // }
+
+    // fn does_intersect(&self, rhs: &Self) -> bool {
+    //     if self.maxs.cmplt(rhs.mins).any() {
+    //         false
+    //     } else if rhs.maxs.cmplt(self.mins).any() {
+    //         false
+    //     } else {
+    //         true
+    //     }
+    // }
+
+    // fn expand_by_points(&mut self, points: &[Vec3]) {
+    //     for point in points {
+    //         self.expand_by_point(*point);
+    //     }
+    // }
+
+    fn expand_by_point(&mut self, rhs: Vec3) {
+        self.mins = rhs.cmplt(self.mins).select(rhs, self.mins);
+        self.maxs = rhs.cmpgt(self.maxs).select(rhs, self.maxs);
+    }
+
+    // fn expand_by_bounds(&mut self, rhs: &Self) {
+    //     self.expand_by_point(rhs.mins);
+    //     self.expand_by_point(rhs.maxs);
+    // }
+
+    // fn width_x(&self) -> f32 {
+    //     self.maxs.x - self.mins.x
+    // }
+
+    // fn width_y(&self) -> f32 {
+    //     self.maxs.y - self.mins.y
+    // }
+
+    // fn width_z(&self) -> f32 {
+    //     self.maxs.z - self.mins.z
+    // }
+}
+
 #[derive(Copy, Clone, Debug)]
 enum Shape {
     Sphere { radius: f32 },
@@ -37,6 +93,15 @@ impl Shape {
                 let i = 2.0 * radius * radius / 5.0;
                 Mat3::from_diagonal(Vec3::splat(i))
             }
+        }
+    }
+
+    fn bounds(&self, translation: Vec3, _orientation: Quat) -> Bounds {
+        match self {
+            Shape::Sphere { radius } => Bounds {
+                mins: Vec3::splat(-radius) + translation,
+                maxs: Vec3::splat(*radius) + translation,
+            },
         }
     }
 }
@@ -175,9 +240,9 @@ impl Body {
         self.position + self.orientation * com
     }
 
-    pub fn centre_of_mass_local(&self) -> Vec3 {
-        self.shape.centre_of_mass()
-    }
+    // pub fn centre_of_mass_local(&self) -> Vec3 {
+    //     self.shape.centre_of_mass()
+    // }
 
     pub fn world_to_local(&self, world_point: Vec3) -> Vec3 {
         let tmp = world_point - self.centre_of_mass_world();
@@ -291,8 +356,110 @@ impl Body {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 struct BodyHandle(u32);
+
+#[derive(Copy, Clone, Debug)]
+struct PsuedoBody {
+    handle: BodyHandle,
+    value: f32,
+    is_min: bool,
+}
+
+fn compare_sat(a: &PsuedoBody, b: &PsuedoBody) -> std::cmp::Ordering {
+    if a.value < b.value {
+        std::cmp::Ordering::Less
+    } else if a.value > b.value {
+        std::cmp::Ordering::Greater
+    } else {
+        std::cmp::Ordering::Equal
+    }
+}
+
+fn sort_bodies_bounds(bodies: &[Body], dt_sec: f32) -> Vec<PsuedoBody> {
+    // TODO: allocation on sort
+    let mut sorted_bodies = Vec::with_capacity(bodies.len() * 2);
+
+    let axis = Vec3::one().normalize();
+    for (i, body) in bodies.iter().enumerate() {
+        let mut bounds = body.shape.bounds(body.position, body.orientation);
+
+        // expand the bounds by the linear velocity
+        bounds.expand_by_point(bounds.mins + body.linear_velocity * dt_sec);
+        bounds.expand_by_point(bounds.maxs + body.linear_velocity * dt_sec);
+
+        const BOUNDS_EPS: f32 = 0.01;
+        bounds.expand_by_point(bounds.mins - Vec3::splat(BOUNDS_EPS));
+        bounds.expand_by_point(bounds.maxs + Vec3::splat(BOUNDS_EPS));
+
+        sorted_bodies.push(PsuedoBody {
+            handle: BodyHandle(i as u32),
+            value: axis.dot(bounds.mins),
+            is_min: true,
+        });
+        sorted_bodies.push(PsuedoBody {
+            handle: BodyHandle(i as u32),
+            value: axis.dot(bounds.maxs),
+            is_min: false,
+        });
+    }
+
+    sorted_bodies.sort_unstable_by(compare_sat);
+
+    sorted_bodies
+}
+
+#[derive(Copy, Clone, Debug)]
+struct CollisionPair {
+    a: BodyHandle,
+    b: BodyHandle,
+}
+
+impl PartialEq for CollisionPair {
+    fn eq(&self, other: &Self) -> bool {
+        (self.a == other.a && self.b == other.b) || (self.a == other.b && self.b == other.a)
+    }
+}
+
+impl Eq for CollisionPair {}
+
+fn build_pairs(sorted_bodies: &[PsuedoBody]) -> Vec<CollisionPair> {
+    let mut collision_pairs = Vec::new();
+
+    // Now that the bodies are sorted, build the collision pairs
+    for a in sorted_bodies {
+        if !a.is_min {
+            continue;
+        }
+
+        for b in &sorted_bodies[1..] {
+            // if we've hit the end of the a element then we're done creating pairs with a
+            if b.handle == a.handle {
+                break;
+            }
+
+            if !b.is_min {
+                continue;
+            }
+
+            collision_pairs.push(CollisionPair {
+                a: a.handle,
+                b: b.handle,
+            });
+        }
+    }
+
+    collision_pairs
+}
+
+fn sweep_and_prune_1d(bodies: &[Body], dt_sec: f32) -> Vec<CollisionPair> {
+    let sorted_bodies = sort_bodies_bounds(bodies, dt_sec);
+    build_pairs(&sorted_bodies)
+}
+
+fn broadphase(bodies: &[Body], dt_sec: f32) -> Vec<CollisionPair> {
+    sweep_and_prune_1d(bodies, dt_sec)
+}
 
 struct PhysicsScene {
     bodies: Vec<Body>,
@@ -305,6 +472,48 @@ impl PhysicsScene {
     pub fn new() -> Self {
         let mut bodies = Vec::with_capacity(2);
         let mut colors = Vec::with_capacity(2);
+
+        // dynamic bodies
+        for x in 0..6 {
+            let radius = 0.5;
+            let xx = ((x as f32) - 1.0) * radius * 1.5;
+            for z in 0..6 {
+                let zz = ((z as f32) - 1.0) * radius * 1.5;
+                bodies.push(Body {
+                    position: Vec3::new(xx, 10.0, zz),
+                    orientation: Quat::identity(),
+                    linear_velocity: Vec3::zero(),
+                    angular_velocity: Vec3::zero(),
+                    inv_mass: 1.0,
+                    elasticity: 0.5,
+                    friction: 0.5,
+                    shape: Shape::Sphere { radius },
+                });
+                colors.push(Color::rgb(0.8, 0.7, 0.6));
+            }
+        }
+
+        // static floor
+        for x in 0..3 {
+            let radius = 80.0;
+            let xx = ((x as f32) - 1.0) * radius * 0.25;
+            for z in 0..3 {
+                let zz = ((z as f32) - 1.0) * radius * 0.25;
+                bodies.push(Body {
+                    position: Vec3::new(xx, -radius, zz),
+                    orientation: Quat::identity(),
+                    linear_velocity: Vec3::zero(),
+                    angular_velocity: Vec3::zero(),
+                    inv_mass: 0.0,
+                    elasticity: 0.99,
+                    friction: 0.5,
+                    shape: Shape::Sphere { radius },
+                });
+                colors.push(Color::rgb(0.3, 0.5, 0.3));
+            }
+        }
+
+        /*
         bodies.push(Body {
             position: Vec3::new(-3.0, 3.0, 0.0),
             linear_velocity: Vec3::new(0.0, 0.0, 0.0),
@@ -336,6 +545,7 @@ impl PhysicsScene {
             ..Default::default()
         });
         colors.push(Color::rgb(0.3, 0.5, 0.3));
+        */
 
         let handles = bodies
             .iter()
@@ -353,8 +563,13 @@ impl PhysicsScene {
         }
     }
 
-    fn intersect(&mut self, index_a: usize, index_b: usize, delta_seconds: f32) -> Option<Contact> {
-        let (body_a, body_b) = self.get_body_pair_mut_from_indices(index_a, index_b);
+    fn intersect(
+        &mut self,
+        handle_a: BodyHandle,
+        handle_b: BodyHandle,
+        delta_seconds: f32,
+    ) -> Option<Contact> {
+        let (body_a, body_b) = self.get_body_pair_mut(handle_a, handle_b);
 
         // skip body pairs with infinite mass
         if body_a.has_infinite_mass() && body_b.has_infinite_mass() {
@@ -399,8 +614,8 @@ impl PhysicsScene {
                         normal,
                         separation_dist,
                         time_of_impact,
-                        handle_a: BodyHandle(index_a as u32),
-                        handle_b: BodyHandle(index_b as u32),
+                        handle_a,
+                        handle_b,
                     })
                 } else {
                     None
@@ -410,7 +625,7 @@ impl PhysicsScene {
     }
 
     fn resolve_contact(&mut self, contact: &Contact) {
-        let (body_a, body_b) = self.get_body_pair_mut(&contact.handle_a, &contact.handle_b);
+        let (body_a, body_b) = self.get_body_pair_mut(contact.handle_a, contact.handle_b);
         debug_assert!(!body_a.has_infinite_mass() && !body_b.has_infinite_mass());
 
         let point_on_a = body_a.local_to_world(contact.local_point_a);
@@ -491,18 +706,22 @@ impl PhysicsScene {
             }
         }
 
+        // broadphase
+        let collision_pairs = broadphase(&self.bodies, delta_seconds);
+
+        // narrowphase (perform actual collision detection)
+
         // move contacts ownership to local
         let mut contacts = Vec::new();
         std::mem::swap(&mut contacts, &mut self.contacts);
 
         // TODO: is there a more idomatic Rust way of doing this?
         self.contacts.clear();
-        self.contacts.reserve(self.bodies.len() * self.bodies.len());
-        for a in 0..self.bodies.len() {
-            for b in (a + 1)..self.bodies.len() {
-                if let Some(contact) = self.intersect(a, b, delta_seconds) {
-                    self.contacts.push(contact);
-                }
+        let max_contacts = self.bodies.len() * self.bodies.len();
+        self.contacts.reserve(max_contacts);
+        for pair in collision_pairs {
+            if let Some(contact) = self.intersect(pair.a, pair.b, delta_seconds) {
+                contacts.push(contact)
             }
         }
 
@@ -573,8 +792,8 @@ impl PhysicsScene {
 
     pub fn get_body_pair_mut(
         &mut self,
-        index_a: &BodyHandle,
-        index_b: &BodyHandle,
+        index_a: BodyHandle,
+        index_b: BodyHandle,
     ) -> (&mut Body, &mut Body) {
         self.get_body_pair_mut_from_indices(index_a.0 as usize, index_b.0 as usize)
     }
@@ -592,7 +811,7 @@ impl PhysicsScene {
     }
 }
 
-fn physics_update_system(time: Res<Time>, mut scene: ResMut<PhysicsScene>) {
+fn physics_update_system(_time: Res<Time>, mut scene: ResMut<PhysicsScene>) {
     //let delta_seconds = f32::min(1.0, time.delta_seconds());
     let delta_seconds = 1.0 / 60.0;
     scene.update(delta_seconds);
