@@ -48,8 +48,8 @@ impl Bounds {
     // }
 
     fn expand_by_point(&mut self, rhs: Vec3) {
-        self.mins = rhs.cmplt(self.mins).select(rhs, self.mins);
-        self.maxs = rhs.cmpgt(self.maxs).select(rhs, self.maxs);
+        self.mins = Vec3::select(rhs.cmplt(self.mins), rhs, self.mins);
+        self.maxs = Vec3::select(rhs.cmpgt(self.maxs), rhs, self.maxs);
     }
 
     // fn expand_by_bounds(&mut self, rhs: &Self) {
@@ -84,7 +84,7 @@ impl Default for Shape {
 impl Shape {
     fn centre_of_mass(&self) -> Vec3 {
         match self {
-            Shape::Sphere { .. } => Vec3::zero(),
+            Shape::Sphere { .. } => Vec3::ZERO,
         }
     }
     fn inertia_tensor(&self) -> Mat3 {
@@ -222,10 +222,10 @@ struct Body {
 impl Default for Body {
     fn default() -> Self {
         Self {
-            position: Vec3::zero(),
-            orientation: Quat::identity(),
-            linear_velocity: Vec3::zero(),
-            angular_velocity: Vec3::zero(),
+            position: Vec3::ZERO,
+            orientation: Quat::IDENTITY,
+            linear_velocity: Vec3::ZERO,
+            angular_velocity: Vec3::ZERO,
             inv_mass: 1.0,
             elasticity: 0.5,
             friction: 0.5,
@@ -339,12 +339,7 @@ impl Body {
         // update orientation
         let d_angle = self.angular_velocity * delta_seconds;
         let angle = d_angle.length();
-        let inv_angle = angle.recip();
-        let dq = if inv_angle.is_finite() {
-            Quat::from_axis_angle(d_angle * inv_angle, angle)
-        } else {
-            Quat::identity()
-        };
+        let dq = Quat::from_axis_angle(d_angle, angle);
         self.orientation = (dq * self.orientation).normalize();
 
         // now get the new body position
@@ -380,7 +375,7 @@ fn sort_bodies_bounds(bodies: &[Body], dt_sec: f32) -> Vec<PsuedoBody> {
     // TODO: allocation on sort
     let mut sorted_bodies = Vec::with_capacity(bodies.len() * 2);
 
-    let axis = Vec3::one().normalize();
+    let axis = Vec3::ONE.normalize();
     for (i, body) in bodies.iter().enumerate() {
         let mut bounds = body.shape.bounds(body.position, body.orientation);
 
@@ -427,12 +422,14 @@ fn build_pairs(sorted_bodies: &[PsuedoBody]) -> Vec<CollisionPair> {
     let mut collision_pairs = Vec::new();
 
     // Now that the bodies are sorted, build the collision pairs
-    for a in sorted_bodies {
+    for i in 0..sorted_bodies.len() {
+        let a = &sorted_bodies[i];
         if !a.is_min {
             continue;
         }
 
-        for b in &sorted_bodies[1..] {
+        for j in (i + 1)..sorted_bodies.len() {
+            let b = &sorted_bodies[j];
             // if we've hit the end of the a element then we're done creating pairs with a
             if b.handle == a.handle {
                 break;
@@ -481,9 +478,9 @@ impl PhysicsScene {
                 let zz = ((z as f32) - 1.0) * radius * 1.5;
                 bodies.push(Body {
                     position: Vec3::new(xx, 10.0, zz),
-                    orientation: Quat::identity(),
-                    linear_velocity: Vec3::zero(),
-                    angular_velocity: Vec3::zero(),
+                    orientation: Quat::IDENTITY,
+                    linear_velocity: Vec3::ZERO,
+                    angular_velocity: Vec3::ZERO,
                     inv_mass: 1.0,
                     elasticity: 0.5,
                     friction: 0.5,
@@ -501,9 +498,9 @@ impl PhysicsScene {
                 let zz = ((z as f32) - 1.0) * radius * 0.25;
                 bodies.push(Body {
                     position: Vec3::new(xx, -radius, zz),
-                    orientation: Quat::identity(),
-                    linear_velocity: Vec3::zero(),
-                    angular_velocity: Vec3::zero(),
+                    orientation: Quat::IDENTITY,
+                    linear_velocity: Vec3::ZERO,
+                    angular_velocity: Vec3::ZERO,
                     inv_mass: 0.0,
                     elasticity: 0.99,
                     friction: 0.5,
@@ -667,7 +664,7 @@ impl PhysicsScene {
         let vel_tan = vab - vel_normal;
 
         // get the tangential velocities relative to the other body
-        let rel_vel_tan = vel_tan.normalize();
+        let rel_vel_tan = vel_tan.normalize_or_zero();
 
         let inertia_a = (inv_inertia_world_a * ra.cross(rel_vel_tan)).cross(ra);
         let inertia_b = (inv_inertia_world_b * rb.cross(rel_vel_tan)).cross(rb);
@@ -726,7 +723,7 @@ impl PhysicsScene {
         }
 
         // sort the times of impact from earliest to latest
-        self.contacts.sort_by(|a, b| {
+        self.contacts.sort_unstable_by(|a, b| {
             if a.time_of_impact < b.time_of_impact {
                 std::cmp::Ordering::Less
             } else if a.time_of_impact == b.time_of_impact {
@@ -756,10 +753,12 @@ impl PhysicsScene {
         }
 
         for (index, body) in self.bodies.iter().enumerate() {
-            println!(
-                "index: {} position: {} dt: {}",
-                index, body.position, delta_seconds
-            );
+            if !body.has_infinite_mass() {
+                println!(
+                    "index: {} position: {} linvel: {} angvel: {}",
+                    index, body.position, body.linear_velocity, body.angular_velocity
+                );
+            }
         }
 
         // move contacts ownership back to self to avoid re-allocating next update
@@ -814,7 +813,10 @@ impl PhysicsScene {
 fn physics_update_system(_time: Res<Time>, mut scene: ResMut<PhysicsScene>) {
     //let delta_seconds = f32::min(1.0, time.delta_seconds());
     let delta_seconds = 1.0 / 60.0;
-    scene.update(delta_seconds);
+    // the game physics weekend application is doing 2 steps
+    for _ in 0..2 {
+        scene.update(delta_seconds * 0.5);
+    }
 }
 
 fn copy_transforms_system(
@@ -879,7 +881,7 @@ fn setup_rendering(
         // camera
         .spawn(Camera3dBundle {
             transform: Transform::from_translation(Vec3::new(-15.0, 5.0, 0.0))
-                .looking_at(Vec3::zero(), Vec3::unit_y()),
+                .looking_at(Vec3::ZERO, Vec3::Y),
             ..Default::default()
         });
 
