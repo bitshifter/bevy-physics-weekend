@@ -248,6 +248,7 @@ name = "bevy-physics-weekend"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy_flycam",
 ]
 
 [[package]]
@@ -378,6 +379,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "bevy_flycam"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dbfe70d2f15ddb572821440665f9215d1351dbe7e81ec7125b58081c466eba4a"
+dependencies = [
+ "bevy",
 ]
 
 [[package]]
@@ -1774,7 +1784,7 @@ dependencies = [
 [[package]]
 name = "glam"
 version = "0.12.0"
-source = "git+https://github.com/bitshifter/glam-rs#17559495bff1b718ef4525c80933e5966c30abbb"
+source = "git+https://github.com/bitshifter/glam-rs#8e3db8e0d061b4bc15e533b84f81ca6900253707"
 dependencies = [
  "serde",
 ]

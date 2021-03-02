@@ -1,4 +1,6 @@
 use bevy::{prelude::*, utils::Duration};
+use bevy_flycam::PlayerPlugin;
+// use bevy_fly_camera::{FlyCamera, FlyCameraPlugin};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 struct Bounds {
@@ -449,12 +451,28 @@ struct PhysicsScene {
     colors: Vec<Color>,
     handles: Vec<BodyHandle>,
     contacts: Option<Vec<Contact>>,
+    paused: bool,
 }
 
 impl PhysicsScene {
     pub fn new() -> Self {
-        let mut bodies = Vec::with_capacity(6 * 6 + 3 * 3);
-        let mut colors = Vec::with_capacity(bodies.capacity());
+        let mut scene = PhysicsScene {
+            bodies: Vec::new(),
+            colors: Vec::new(),
+            handles: Vec::new(),
+            contacts: None,
+            paused: true,
+        };
+        scene.reset();
+        scene
+    }
+
+    fn reset(&mut self) {
+        let num_bodies = 6 * 6 + 3 * 3;
+        self.bodies.clear();
+        self.bodies.reserve(num_bodies);
+        self.colors.clear();
+        self.colors.reserve(num_bodies);
 
         // dynamic bodies
         for x in 0..6 {
@@ -462,7 +480,7 @@ impl PhysicsScene {
             let xx = ((x as f32) - 1.0) * radius * 1.5;
             for z in 0..6 {
                 let zz = ((z as f32) - 1.0) * radius * 1.5;
-                bodies.push(Body {
+                self.bodies.push(Body {
                     position: Vec3::new(xx, 10.0, zz),
                     orientation: Quat::IDENTITY,
                     linear_velocity: Vec3::ZERO,
@@ -472,7 +490,7 @@ impl PhysicsScene {
                     friction: 0.5,
                     shape: Shape::Sphere { radius },
                 });
-                colors.push(Color::rgb(0.8, 0.7, 0.6));
+                self.colors.push(Color::rgb(0.8, 0.7, 0.6));
                 // break; // HACK
             }
             // break; // HACK
@@ -484,7 +502,7 @@ impl PhysicsScene {
             let xx = ((x as f32) - 1.0) * radius * 0.25;
             for z in 0..3 {
                 let zz = ((z as f32) - 1.0) * radius * 0.25;
-                bodies.push(Body {
+                self.bodies.push(Body {
                     position: Vec3::new(xx, -radius, zz),
                     orientation: Quat::IDENTITY,
                     linear_velocity: Vec3::ZERO,
@@ -494,7 +512,7 @@ impl PhysicsScene {
                     friction: 0.5,
                     shape: Shape::Sphere { radius },
                 });
-                colors.push(Color::rgb(0.3, 0.5, 0.3));
+                self.colors.push(Color::rgb(0.3, 0.5, 0.3));
             }
         }
 
@@ -523,20 +541,16 @@ impl PhysicsScene {
         colors.push(Color::rgb(0.3, 0.5, 0.3));
         */
 
-        let handles = bodies
+        self.handles = self.bodies
             .iter()
             .enumerate()
             .map(|(index, _body)| BodyHandle(index as u32))
             .collect();
 
-        let contacts = Some(Vec::with_capacity(bodies.len() * bodies.len()));
+        let max_contacts = self.bodies.len() * self.bodies.len();
+        self.contacts.replace(Vec::with_capacity(max_contacts));
 
-        Self {
-            bodies,
-            colors,
-            handles,
-            contacts,
-        }
+        self.paused = true;
     }
 
     fn intersect(
@@ -786,56 +800,85 @@ impl PhysicsScene {
 
 struct TimeAccumulator {
     accumulated_time: Duration,
-    frame: u64,
+    frame_number: u64,
+    num_steps: u32,
+    max_steps: u32,
+    update_rate: Duration,
 }
 
 impl TimeAccumulator {
     fn new() -> Self {
         TimeAccumulator {
             accumulated_time: Duration::from_nanos(0),
-            frame: 0,
+            frame_number: 0,
+            num_steps: 0,
+            max_steps: 4,
+            update_rate: Duration::from_secs(1) / 60,
         }
+    }
+    fn update(&mut self, delta: Duration) {
+        self.frame_number += 1;
+        self.accumulated_time += delta;
+        self.num_steps = (self.accumulated_time.as_nanos() / self.update_rate.as_nanos()) as u32;
+        if self.num_steps > self.max_steps {
+            eprintln!(
+                "capping physics steps {} from time {} accumulated {} at rate {}",
+                self.num_steps,
+                delta.as_secs_f64(),
+                self.accumulated_time.as_secs_f64(),
+                self.update_rate.as_secs_f64(),
+            );
+            self.accumulated_time = Duration::from_nanos(0);
+            self.num_steps = self.max_steps;
+        } else {
+            self.accumulated_time -= self.update_rate * self.num_steps;
+        }
+    }
+
+    fn step_secs(&self) -> f32 {
+        self.update_rate.as_secs_f32()
+    }
+
+    fn num_steps(&self) -> u32 {
+        self.num_steps
     }
 }
 
 fn physics_update_system(
+    keys: Res<Input<KeyCode>>,
     time: Res<Time>,
     mut accum: ResMut<TimeAccumulator>,
     mut scene: ResMut<PhysicsScene>,
 ) {
     let delta = time.delta();
-    accum.accumulated_time += delta;
-    accum.frame += 1;
-    let update_rate = Duration::from_secs(1) / 60;
-    let mut num_steps = (accum.accumulated_time.as_nanos() / update_rate.as_nanos()) as u32;
-    const MAX_STEPS: u32 = 4;
-    if num_steps > MAX_STEPS {
-        eprintln!(
-            "capping physics steps {} from time {} accumulated {} at rate {}",
-            num_steps,
-            delta.as_secs_f64(),
-            accum.accumulated_time.as_secs_f64(),
-            update_rate.as_secs_f64(),
-        );
-        num_steps = MAX_STEPS;
-        accum.accumulated_time = Duration::from_nanos(0);
-    } else {
-        accum.accumulated_time -= update_rate * num_steps;
-        // eprintln!(
-        //     "{}: delta: {} accum: {} steps: {} rate: {}",
-        //     accum.frame,
-        //     delta.as_secs_f64(),
-        //     accum.accumulated_time.as_secs_f64(),
-        //     num_steps,
-        //     update_rate.as_secs_f64()
-        // );
+    accum.update(delta);
+
+    // T pauses the sim
+    if keys.just_released(KeyCode::T) {
+        scene.paused = !scene.paused;
     }
 
-    let delta_seconds = update_rate.as_secs_f32();
+    let num_steps = if scene.paused {
+        // y substeps when paused
+        if keys.just_released(KeyCode::Y) {
+            1
+        } else {
+            0
+        }
+    } else {
+        accum.num_steps()
+    };
+
+    // R resets the scene
+    if keys.just_released(KeyCode::R) {
+        scene.reset();
+    }
+
+    let step_secs = accum.step_secs();
     for _ in 0..num_steps {
         // the game physics weekend application is doing 2 sub steps
         for _ in 0..2 {
-             scene.update(delta_seconds * 0.5);
+             scene.update(step_secs * 0.5);
         }
     }
 }
@@ -898,13 +941,16 @@ fn setup_rendering(
         .spawn(LightBundle {
             transform: Transform::from_translation(Vec3::new(4.0, 8.0, 4.0)),
             ..Default::default()
-        })
-        // camera
-        .spawn(Camera3dBundle {
-            transform: Transform::from_translation(Vec3::new(-40.0, 25.0, 0.0))
-                .looking_at(Vec3::ZERO, Vec3::Y),
-            ..Default::default()
+        // })
+        // // camera
+        // .spawn(Camera3dBundle {
+        //     transform: Transform::from_translation(Vec3::new(-40.0, 25.0, 0.0))
+        //         .looking_at(Vec3::ZERO, Vec3::Y),
+        //     ..Default::default()
         });
+        // .with(FlyCamera {
+        //     sensitivity: 10.0,
+        //     ..Default::default()});
 
     for body_handle in physics_scene.handles().iter() {
         let body = physics_scene.get_body(body_handle);
@@ -934,6 +980,8 @@ fn main() {
         .add_resource(PhysicsScene::new())
         .add_resource(TimeAccumulator::new())
         .add_plugins(DefaultPlugins)
+        // .add_plugin(FlyCameraPlugin)
+        .add_plugin(PlayerPlugin)
         .add_startup_system(setup_rendering.system())
         .add_system(physics_update_system.system())
         .add_system(copy_transforms_system.system())
