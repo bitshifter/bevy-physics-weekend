@@ -1,18 +1,4 @@
-use bevy::prelude::*;
-
-trait Mat3Ex {
-    fn from_diagonal(diagonal: Vec3) -> Self;
-}
-
-impl Mat3Ex for Mat3 {
-    fn from_diagonal(diagonal: Vec3) -> Self {
-        Self::from_cols(
-            Vec3::new(diagonal.x, 0.0, 0.0),
-            Vec3::new(0.0, diagonal.y, 0.0),
-            Vec3::new(0.0, 0.0, diagonal.z),
-        )
-    }
-}
+use bevy::{prelude::*, utils::Duration};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 struct Bounds {
@@ -467,8 +453,8 @@ struct PhysicsScene {
 
 impl PhysicsScene {
     pub fn new() -> Self {
-        let mut bodies = Vec::with_capacity(2);
-        let mut colors = Vec::with_capacity(2);
+        let mut bodies = Vec::with_capacity(6 * 6 + 3 * 3);
+        let mut colors = Vec::with_capacity(bodies.capacity());
 
         // dynamic bodies
         for x in 0..6 {
@@ -487,7 +473,9 @@ impl PhysicsScene {
                     shape: Shape::Sphere { radius },
                 });
                 colors.push(Color::rgb(0.8, 0.7, 0.6));
+                // break; // HACK
             }
+            // break; // HACK
         }
 
         // static floor
@@ -511,23 +499,14 @@ impl PhysicsScene {
         }
 
         /*
+        // dynamic body
         bodies.push(Body {
-            position: Vec3::new(-3.0, 3.0, 0.0),
-            linear_velocity: Vec3::new(0.0, 0.0, 0.0),
+            position: Vec3::new(0.0, 10.0, 0.0),
+            linear_velocity: Vec3::new(1.0, 0.0, 0.0),
             inv_mass: 1.0,
             elasticity: 0.0,
             friction: 0.5,
-            shape: Shape::Sphere { radius: 0.5 },
-            ..Default::default()
-        });
-        colors.push(Color::rgb(0.8, 0.7, 0.6));
-        bodies.push(Body {
-            position: Vec3::new(0.0, 3.0, 0.0),
-            linear_velocity: Vec3::new(0.0, 0.0, 0.0),
-            inv_mass: 0.0,
-            elasticity: 0.0,
-            friction: 0.5,
-            shape: Shape::Sphere { radius: 0.5 },
+            shape: Shape::Sphere { radius: 1.0 },
             ..Default::default()
         });
         colors.push(Color::rgb(0.8, 0.7, 0.6));
@@ -536,8 +515,8 @@ impl PhysicsScene {
         bodies.push(Body {
             position: Vec3::new(0.0, -1000.0, 0.0),
             inv_mass: 0.0,
-            elasticity: 1.0,
-            friction: 0.0,
+            elasticity: 0.99,
+            friction: 0.5,
             shape: Shape::Sphere { radius: 1000.0 },
             ..Default::default()
         });
@@ -623,7 +602,7 @@ impl PhysicsScene {
 
     fn resolve_contact(&mut self, contact: &Contact) {
         let (body_a, body_b) = self.get_body_pair_mut(contact.handle_a, contact.handle_b);
-        debug_assert!(!body_a.has_infinite_mass() && !body_b.has_infinite_mass());
+        debug_assert!(!body_a.has_infinite_mass() || !body_b.has_infinite_mass());
 
         let point_on_a = body_a.local_to_world(contact.local_point_a);
         let point_on_b = body_b.local_to_world(contact.local_point_b);
@@ -706,16 +685,14 @@ impl PhysicsScene {
         // broadphase
         let collision_pairs = broadphase(&self.bodies, delta_seconds);
 
-        // narrowphase (perform actual collision detection)
-
         // move contacts ownership to local
         let mut contacts = Vec::new();
         std::mem::swap(&mut contacts, &mut self.contacts);
-
-        // TODO: is there a more idomatic Rust way of doing this?
-        self.contacts.clear();
+        contacts.clear();
         let max_contacts = self.bodies.len() * self.bodies.len();
-        self.contacts.reserve(max_contacts);
+        contacts.reserve(max_contacts);
+
+        // narrowphase (perform actual collision detection)
         for pair in collision_pairs {
             if let Some(contact) = self.intersect(pair.a, pair.b, delta_seconds) {
                 contacts.push(contact)
@@ -723,7 +700,7 @@ impl PhysicsScene {
         }
 
         // sort the times of impact from earliest to latest
-        self.contacts.sort_unstable_by(|a, b| {
+        contacts.sort_unstable_by(|a, b| {
             if a.time_of_impact < b.time_of_impact {
                 std::cmp::Ordering::Less
             } else if a.time_of_impact == b.time_of_impact {
@@ -752,14 +729,14 @@ impl PhysicsScene {
             body.update(time_remaining);
         }
 
-        for (index, body) in self.bodies.iter().enumerate() {
-            if !body.has_infinite_mass() {
-                println!(
-                    "index: {} position: {} linvel: {} angvel: {}",
-                    index, body.position, body.linear_velocity, body.angular_velocity
-                );
-            }
-        }
+        // for (index, body) in self.bodies.iter().enumerate() {
+        //     if !body.has_infinite_mass() {
+        //         println!(
+        //             "index: {} position: {} linvel: {} angvel: {}",
+        //             index, body.position, body.linear_velocity, body.angular_velocity
+        //         );
+        //     }
+        // }
 
         // move contacts ownership back to self to avoid re-allocating next update
         std::mem::swap(&mut contacts, &mut self.contacts);
@@ -810,12 +787,59 @@ impl PhysicsScene {
     }
 }
 
-fn physics_update_system(_time: Res<Time>, mut scene: ResMut<PhysicsScene>) {
-    //let delta_seconds = f32::min(1.0, time.delta_seconds());
-    let delta_seconds = 1.0 / 60.0;
-    // the game physics weekend application is doing 2 steps
-    for _ in 0..2 {
-        scene.update(delta_seconds * 0.5);
+struct TimeAccumulator {
+    accumulated_time: Duration,
+    frame: u64,
+}
+
+impl TimeAccumulator {
+    fn new() -> Self {
+        TimeAccumulator {
+            accumulated_time: Duration::from_nanos(0),
+            frame: 0,
+        }
+    }
+}
+
+fn physics_update_system(
+    time: Res<Time>,
+    mut accum: ResMut<TimeAccumulator>,
+    mut scene: ResMut<PhysicsScene>,
+) {
+    let delta = time.delta();
+    accum.accumulated_time += delta;
+    accum.frame += 1;
+    let update_rate = Duration::from_secs(1) / 60;
+    let mut num_steps = (accum.accumulated_time.as_nanos() / update_rate.as_nanos()) as u32;
+    const MAX_STEPS: u32 = 4;
+    if num_steps > MAX_STEPS {
+        eprintln!(
+            "capping physics steps {} from time {} accumulated {} at rate {}",
+            num_steps,
+            delta.as_secs_f64(),
+            accum.accumulated_time.as_secs_f64(),
+            update_rate.as_secs_f64(),
+        );
+        num_steps = MAX_STEPS;
+        accum.accumulated_time = Duration::from_nanos(0);
+    } else {
+        accum.accumulated_time -= update_rate * num_steps;
+        // eprintln!(
+        //     "{}: delta: {} accum: {} steps: {} rate: {}",
+        //     accum.frame,
+        //     delta.as_secs_f64(),
+        //     accum.accumulated_time.as_secs_f64(),
+        //     num_steps,
+        //     update_rate.as_secs_f64()
+        // );
+    }
+
+    let delta_seconds = update_rate.as_secs_f32();
+    for _ in 0..num_steps {
+        // the game physics weekend application is doing 2 sub steps
+        for _ in 0..2 {
+             scene.update(delta_seconds * 0.5);
+        }
     }
 }
 
@@ -880,7 +904,7 @@ fn setup_rendering(
         })
         // camera
         .spawn(Camera3dBundle {
-            transform: Transform::from_translation(Vec3::new(-15.0, 5.0, 0.0))
+            transform: Transform::from_translation(Vec3::new(-20.0, 7.0, 0.0))
                 .looking_at(Vec3::ZERO, Vec3::Y),
             ..Default::default()
         });
@@ -911,6 +935,7 @@ fn main() {
     App::build()
         .add_resource(Msaa { samples: 4 })
         .add_resource(PhysicsScene::new())
+        .add_resource(TimeAccumulator::new())
         .add_plugins(DefaultPlugins)
         .add_startup_system(setup_rendering.system())
         .add_system(physics_update_system.system())
