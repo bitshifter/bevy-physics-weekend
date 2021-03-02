@@ -448,7 +448,7 @@ struct PhysicsScene {
     bodies: Vec<Body>,
     colors: Vec<Color>,
     handles: Vec<BodyHandle>,
-    contacts: Vec<Contact>,
+    contacts: Option<Vec<Contact>>,
 }
 
 impl PhysicsScene {
@@ -529,7 +529,7 @@ impl PhysicsScene {
             .map(|(index, _body)| BodyHandle(index as u32))
             .collect();
 
-        let contacts = Vec::with_capacity(bodies.len() * bodies.len());
+        let contacts = Some(Vec::with_capacity(bodies.len() * bodies.len()));
 
         Self {
             bodies,
@@ -686,11 +686,8 @@ impl PhysicsScene {
         let collision_pairs = broadphase(&self.bodies, delta_seconds);
 
         // move contacts ownership to local
-        let mut contacts = Vec::new();
-        std::mem::swap(&mut contacts, &mut self.contacts);
+        let mut contacts = self.contacts.take().expect("Contacts storage missing!");
         contacts.clear();
-        let max_contacts = self.bodies.len() * self.bodies.len();
-        contacts.reserve(max_contacts);
 
         // narrowphase (perform actual collision detection)
         for pair in collision_pairs {
@@ -739,7 +736,7 @@ impl PhysicsScene {
         // }
 
         // move contacts ownership back to self to avoid re-allocating next update
-        std::mem::swap(&mut contacts, &mut self.contacts);
+        self.contacts.replace(contacts);
     }
 
     fn get_body_pair_mut_from_indices(
