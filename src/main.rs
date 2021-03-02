@@ -904,7 +904,7 @@ fn setup_rendering(
         })
         // camera
         .spawn(Camera3dBundle {
-            transform: Transform::from_translation(Vec3::new(-20.0, 7.0, 0.0))
+            transform: Transform::from_translation(Vec3::new(-40.0, 25.0, 0.0))
                 .looking_at(Vec3::ZERO, Vec3::Y),
             ..Default::default()
         });
