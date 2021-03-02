@@ -914,7 +914,7 @@ fn setup_rendering(
         let color = physics_scene.get_color(body_handle);
         let mesh = match body.shape {
             Shape::Sphere { radius } => {
-                let subdivisions = usize::max(5, (radius / 10.0) as usize).min(10);
+                let subdivisions = (radius as usize).max(10).min(50);
                 meshes.add(Mesh::from(shape::Icosphere {
                     radius,
                     subdivisions,
