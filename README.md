@@ -29,7 +29,7 @@ The [Bevy Flycam] plugin is used for camera movement.
 
 ## License
 
-* [Creative Commons Zero v1.0 Universal]
+[Creative Commons Zero v1.0 Universal]
 
 [Game Physics in a Weekend]: https://gamephysicsweekend.github.io
 [Rust]: https://www.rust-lang.org
