@@ -7,12 +7,13 @@ pub struct Bounds {
 }
 
 impl Bounds {
-    // fn new() -> Bounds {
-    //     Bounds {
-    //         mins: Vec3::splat(std::f32::MAX),
-    //         maxs: Vec3::splat(-std::f32::MAX),
-    //     }
-    // }
+    pub fn new() -> Bounds {
+        Bounds {
+            mins: Vec3::splat(std::f32::MAX),
+            maxs: Vec3::splat(-std::f32::MAX),
+        }
+    }
+
     // fn clear(&mut self) {
     //     *self = Self::new();
     // }

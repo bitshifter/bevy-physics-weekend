@@ -1,5 +1,6 @@
 use crate::{body::Body, broadphase::broadphase, intersect::sphere_sphere_dynamic, shape::Shape};
 use glam::{Quat, Vec3};
+use std::{borrow::Borrow, sync::Arc};
 
 #[derive(Copy, Clone, Debug)]
 struct Contact {
@@ -47,6 +48,9 @@ impl PhysicsScene {
         self.colors.clear();
         self.colors.reserve(num_bodies);
 
+        let ball_shape = Arc::new(Shape::make_sphere(0.5));
+        let ground_shape = Arc::new(Shape::make_sphere(80.0));
+
         // dynamic bodies
         for x in 0..6 {
             let radius = 0.5;
@@ -61,7 +65,7 @@ impl PhysicsScene {
                     inv_mass: 1.0,
                     elasticity: 0.5,
                     friction: 0.5,
-                    shape: Shape::Sphere { radius },
+                    shape: ball_shape.clone(),
                 });
                 self.colors.push(Vec3::new(0.8, 0.7, 0.6));
                 // break; // HACK
@@ -83,7 +87,7 @@ impl PhysicsScene {
                     inv_mass: 0.0,
                     elasticity: 0.99,
                     friction: 0.5,
-                    shape: Shape::Sphere { radius },
+                    shape: ground_shape.clone(),
                 });
                 self.colors.push(Vec3::new(0.3, 0.5, 0.3));
             }
@@ -140,12 +144,14 @@ impl PhysicsScene {
             return None;
         }
 
-        let shapes = (body_a.shape, body_b.shape);
+        let shape_a = body_a.shape.clone();
+        let shape_b = body_b.shape.clone();
+        let shapes = (shape_a.borrow(), shape_b.borrow());
         match shapes {
-            (Shape::Sphere { radius: radius_a }, Shape::Sphere { radius: radius_b }) => {
+            (Shape::Sphere(sphere_a), Shape::Sphere(sphere_b)) => {
                 if let Some((world_point_a, world_point_b, time_of_impact)) = sphere_sphere_dynamic(
-                    radius_a,
-                    radius_b,
+                    sphere_a.radius,
+                    sphere_b.radius,
                     body_a.position,
                     body_b.position,
                     body_a.linear_velocity,
@@ -168,7 +174,7 @@ impl PhysicsScene {
 
                     // calculate the separation distance
                     let ab = body_a.position - body_b.position;
-                    let separation_dist = ab.length() - (radius_a + radius_b);
+                    let separation_dist = ab.length() - (sphere_a.radius + sphere_b.radius);
 
                     Some(Contact {
                         world_point_a,
@@ -185,6 +191,7 @@ impl PhysicsScene {
                     None
                 }
             }
+            _ => unimplemented!(),
         }
     }
 
