@@ -3,4 +3,4 @@ pub mod bounds;
 mod broadphase;
 mod intersect;
 pub mod scene;
-pub mod shape;
+pub mod shapes;

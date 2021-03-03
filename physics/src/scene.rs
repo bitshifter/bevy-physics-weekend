@@ -1,4 +1,4 @@
-use crate::{body::Body, broadphase::broadphase, intersect::sphere_sphere_dynamic, shape::Shape};
+use crate::{body::Body, broadphase::broadphase, intersect::sphere_sphere_dynamic, shapes::Shape};
 use glam::{Quat, Vec3};
 use std::{borrow::Borrow, sync::Arc};
 

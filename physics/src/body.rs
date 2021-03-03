@@ -1,4 +1,4 @@
-use crate::shape::Shape;
+use crate::shapes::Shape;
 use glam::{Mat3, Quat, Vec3};
 use std::sync::Arc;
 
