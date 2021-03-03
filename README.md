@@ -27,8 +27,13 @@ The [Bevy Flycam] plugin is used for camera movement.
 * Left shift - move down
 * Escape - toggle mouse cursor lock
 
+## License
+
+* [Creative Commons Zero v1.0 Universal]
+
 [Game Physics in a Weekend]: https://gamephysicsweekend.github.io
 [Rust]: https://www.rust-lang.org
 [Bevy]: https://bevyengine.org
 [glam]: https://github.com/bitshifter/glam
 [Bevy Flycam]: https://github.com/sburris0/bevy_flycam
+[Creative Commons Zero v1.0 Universal]: LICENSE
