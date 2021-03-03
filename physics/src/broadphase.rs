@@ -1,6 +1,6 @@
 use crate::body::Body;
-use crate::physics_scene::BodyHandle;
-use bevy::math::Vec3;
+use crate::scene::BodyHandle;
+use glam::Vec3;
 
 #[derive(Copy, Clone, Debug)]
 pub struct CollisionPair {

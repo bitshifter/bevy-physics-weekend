@@ -1,4 +1,4 @@
-use bevy::math::Vec3;
+use glam::Vec3;
 
 pub fn ray_sphere_intersect(
     ray_start: Vec3,

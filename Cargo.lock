@@ -249,6 +249,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy_flycam",
+ "physics",
 ]
 
 [[package]]
@@ -2626,6 +2627,13 @@ name = "percent-encoding"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4fd5641d01c8f18a23da7b6fe29298ff4b55afcccdf78973b24cf3175fee32e"
+
+[[package]]
+name = "physics"
+version = "0.1.0"
+dependencies = [
+ "glam 0.12.0 (git+https://github.com/bitshifter/glam-rs)",
+]
 
 [[package]]
 name = "pin-project-lite"

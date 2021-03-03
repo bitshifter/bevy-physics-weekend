@@ -1,16 +1,10 @@
-mod body;
-mod bounds;
-mod broadphase;
-mod intersect;
-mod physics_scene;
-mod shape;
 mod time_accumulator;
 
 use bevy::{prelude::*, render::mesh::shape::Icosphere};
 use bevy_flycam::PlayerPlugin;
 
-use physics_scene::{BodyHandle, PhysicsScene};
-use shape::Shape;
+use physics::scene::{BodyHandle, PhysicsScene};
+use physics::shape::Shape;
 use time_accumulator::TimeAccumulator;
 
 fn physics_update_system(
@@ -149,7 +143,6 @@ fn main() {
         .add_resource(PhysicsScene::new())
         .add_resource(TimeAccumulator::new())
         .add_plugins(DefaultPlugins)
-        // .add_plugin(FlyCameraPlugin)
         .add_plugin(PlayerPlugin)
         .add_startup_system(setup_rendering.system())
         .add_system(physics_update_system.system())

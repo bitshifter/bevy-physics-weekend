@@ -1,4 +1,4 @@
-use bevy::math::Vec3;
+use glam::Vec3;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Bounds {

@@ -1,5 +1,5 @@
 use crate::shape::Shape;
-use bevy::math::{Mat3, Quat, Vec3};
+use glam::{Mat3, Quat, Vec3};
 
 #[derive(Copy, Clone, Debug)]
 pub struct Body {

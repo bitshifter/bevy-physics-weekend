@@ -1,5 +1,5 @@
 use crate::{body::Body, broadphase::broadphase, intersect::sphere_sphere_dynamic, shape::Shape};
-use bevy::math::{Quat, Vec3};
+use glam::{Quat, Vec3};
 
 #[derive(Copy, Clone, Debug)]
 struct Contact {
