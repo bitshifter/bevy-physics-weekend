@@ -4,7 +4,7 @@ use bevy::{prelude::*, render::mesh::shape::Icosphere};
 use bevy_flycam::PlayerPlugin;
 use physics::{
     scene::{BodyHandle, PhysicsScene},
-    shape::Shape,
+    shapes::Shape,
 };
 use std::borrow::Borrow;
 use time_accumulator::TimeAccumulator;
