@@ -338,10 +338,71 @@ fn is_external(pts: &[Vec3], tris: &[Tri], pt: Vec3) -> bool {
     false
 }
 
-// TODO: Up to here
-// fn calculate_center_of_mass(pts: &[Vec3], tris: &[Tri]) -> Vec3 {
-//     const NUM_SAMPLES: f32 = 100.0;
-// }
+fn calculate_center_of_mass(pts: &[Vec3], tris: &[Tri]) -> Vec3 {
+    const NUM_SAMPLES: usize = 100;
+
+    let bounds = Bounds::from_points(pts);
+
+    let dv = bounds.width() / NUM_SAMPLES as f32;
+
+    let mut cm = Vec3::ZERO;
+    let mut sample_count = 0;
+
+    for i in 0..NUM_SAMPLES {
+        let x = bounds.mins.x + dv.x * i as f32;
+        for j in 0..NUM_SAMPLES {
+            let y = bounds.mins.y + dv.y as f32;
+            for k in 0..NUM_SAMPLES {
+                let z = bounds.mins.z + dv.z as f32;
+                let pt = Vec3::new(x, y, z);
+                if is_external(pts, tris, pt) {
+                    continue;
+                }
+
+                cm += pt;
+                sample_count += 1;
+            }
+        }
+    }
+
+    cm / sample_count as f32
+}
+
+fn calculate_inertia_tensor(pts: &[Vec3], tris: &[Tri], cm: Vec3) -> Mat3 {
+    const NUM_SAMPLES: usize = 100;
+
+    let bounds = Bounds::from_points(pts);
+
+    let mut tensor = Mat3::ZERO;
+
+    let dv = bounds.width() / NUM_SAMPLES as f32;
+
+    let mut sample_count = 0;
+
+    for i in 0..NUM_SAMPLES {
+        let x = bounds.mins.x + dv.x * i as f32;
+        for j in 0..NUM_SAMPLES {
+            let y = bounds.mins.y + dv.y as f32;
+            for k in 0..NUM_SAMPLES {
+                let z = bounds.mins.z + dv.z as f32;
+                let pt = Vec3::new(x, y, z);
+                if is_external(pts, tris, pt) {
+                    continue;
+                }
+
+                // Get the point relative to the center of mass
+                pt -= cm;
+
+                // TODO: change glam to support this?
+                tensor[0][0] += pt.y * pt.y + pt.z * pt.z;
+
+                sample_count += 1;
+            }
+        }
+    }
+
+    tensor * (sample_count as f32).recip()
+}
 
 #[derive(Clone, Debug)]
 pub struct ShapeConvex {
