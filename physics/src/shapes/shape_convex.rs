@@ -351,9 +351,9 @@ fn calculate_center_of_mass(pts: &[Vec3], tris: &[Tri]) -> Vec3 {
     for i in 0..NUM_SAMPLES {
         let x = bounds.mins.x + dv.x * i as f32;
         for j in 0..NUM_SAMPLES {
-            let y = bounds.mins.y + dv.y as f32;
+            let y = bounds.mins.y + dv.y * j as f32;
             for k in 0..NUM_SAMPLES {
-                let z = bounds.mins.z + dv.z as f32;
+                let z = bounds.mins.z + dv.z * k as f32;
                 let pt = Vec3::new(x, y, z);
                 if is_external(pts, tris, pt) {
                     continue;
@@ -373,7 +373,7 @@ fn calculate_inertia_tensor(pts: &[Vec3], tris: &[Tri], cm: Vec3) -> Mat3 {
 
     let bounds = Bounds::from_points(pts);
 
-    let mut tensor = Mat3::ZERO;
+    let mut tensor = [Vec3::ZERO; 3];
 
     let dv = bounds.width() / NUM_SAMPLES as f32;
 
@@ -382,10 +382,10 @@ fn calculate_inertia_tensor(pts: &[Vec3], tris: &[Tri], cm: Vec3) -> Mat3 {
     for i in 0..NUM_SAMPLES {
         let x = bounds.mins.x + dv.x * i as f32;
         for j in 0..NUM_SAMPLES {
-            let y = bounds.mins.y + dv.y as f32;
+            let y = bounds.mins.y + dv.y * j as f32;
             for k in 0..NUM_SAMPLES {
-                let z = bounds.mins.z + dv.z as f32;
-                let pt = Vec3::new(x, y, z);
+                let z = bounds.mins.z + dv.z * k as f32;
+                let mut pt = Vec3::new(x, y, z);
                 if is_external(pts, tris, pt) {
                     continue;
                 }
@@ -393,37 +393,64 @@ fn calculate_inertia_tensor(pts: &[Vec3], tris: &[Tri], cm: Vec3) -> Mat3 {
                 // Get the point relative to the center of mass
                 pt -= cm;
 
-                // TODO: change glam to support this?
                 tensor[0][0] += pt.y * pt.y + pt.z * pt.z;
+                tensor[1][1] += pt.z * pt.z + pt.x * pt.x;
+                tensor[2][2] += pt.x * pt.x + pt.y * pt.y;
+
+                tensor[0][1] += -pt.x * pt.y;
+                tensor[0][2] += -pt.x * pt.z;
+                tensor[1][2] += -pt.y * pt.z;
+
+                tensor[1][0] += -pt.x * pt.y;
+                tensor[2][0] += -pt.x * pt.z;
+                tensor[2][1] += -pt.y * pt.z;
 
                 sample_count += 1;
             }
         }
     }
 
-    tensor * (sample_count as f32).recip()
+    // TODO: might need to be transposed?
+    Mat3::from_cols(tensor[0], tensor[1], tensor[2]) * (sample_count as f32).recip()
 }
 
 #[derive(Clone, Debug)]
 pub struct ShapeConvex {
     points: Vec<Vec3>,
     bounds: Bounds,
-    com: Vec3,
+    centre_of_mass: Vec3,
+    inertia_tensor: Mat3,
 }
 
 impl ShapeConvex {
-    pub fn new(_points: &[Vec3]) -> Self {
-        unimplemented!();
+    pub fn new(points: &[Vec3]) -> Self {
+        // expand into convex hull
+        let mut hull_points = Vec::new();
+        let mut hull_tris = Vec::new();
+        build_convex_hull(points, &mut hull_points, &mut hull_tris);
+
+        let bounds = Bounds::from_points(points);
+
+        let centre_of_mass = calculate_center_of_mass(&hull_points, &hull_tris);
+
+        let inertia_tensor = calculate_inertia_tensor(&hull_points, &hull_tris, centre_of_mass);
+
+        ShapeConvex {
+            points: hull_points,
+            bounds,
+            centre_of_mass,
+            inertia_tensor,
+        }
     }
 }
 
 impl ShapeTrait for ShapeConvex {
     fn centre_of_mass(&self) -> Vec3 {
-        self.com
+        self.centre_of_mass
     }
 
     fn inertia_tensor(&self) -> Mat3 {
-        unimplemented!();
+        self.inertia_tensor
     }
 
     fn local_bounds(&self) -> Bounds {
@@ -460,7 +487,7 @@ impl ShapeTrait for ShapeConvex {
         // this is the same as the box version
         let mut max_speed = 0.0;
         for pt in &self.points {
-            let r = *pt - self.com;
+            let r = *pt - self.centre_of_mass;
             let linear_velocity = angular_velocity.cross(r);
             let speed = dir.dot(linear_velocity);
             if speed > max_speed {
