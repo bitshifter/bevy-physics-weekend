@@ -1,6 +1,77 @@
-use crate::{body::Body, broadphase::broadphase, intersect::sphere_sphere_dynamic, shapes::Shape};
+use crate::{
+    body::Body, broadphase::broadphase, intersect::sphere_sphere_dynamic, scene_shapes::*,
+    shapes::Shape,
+};
 use glam::{Quat, Vec3};
-use std::{borrow::Borrow, sync::Arc};
+use std::borrow::Borrow;
+
+fn add_standard_sandbox(bodies: &mut Vec<Body>, colors: &mut Vec<Vec3>) {
+    let wall_color = Vec3::splat(0.5);
+
+    let box_ground = make_box_ground();
+    let box_wall0 = make_box_wall0();
+    let box_wall1 = make_box_wall1();
+
+    bodies.push(Body {
+        position: Vec3::ZERO,
+        orientation: Quat::IDENTITY,
+        linear_velocity: Vec3::ZERO,
+        angular_velocity: Vec3::ZERO,
+        inv_mass: 0.0,
+        elasticity: 0.5,
+        friction: 0.5,
+        shape: box_ground.clone(),
+    });
+    colors.push(Vec3::new(0.3, 0.5, 0.3));
+
+    bodies.push(Body {
+        position: Vec3::new(50.0, 0.0, 0.0),
+        orientation: Quat::IDENTITY,
+        linear_velocity: Vec3::ZERO,
+        angular_velocity: Vec3::ZERO,
+        inv_mass: 0.0,
+        elasticity: 0.5,
+        friction: 0.0,
+        shape: box_wall0.clone(),
+    });
+    colors.push(wall_color);
+
+    bodies.push(Body {
+        position: Vec3::new(-50.0, 0.0, 0.0),
+        orientation: Quat::IDENTITY,
+        linear_velocity: Vec3::ZERO,
+        angular_velocity: Vec3::ZERO,
+        inv_mass: 0.0,
+        elasticity: 0.5,
+        friction: 0.0,
+        shape: box_wall0.clone(),
+    });
+    colors.push(wall_color);
+
+    bodies.push(Body {
+        position: Vec3::new(0.0, 0.0, 25.0),
+        orientation: Quat::IDENTITY,
+        linear_velocity: Vec3::ZERO,
+        angular_velocity: Vec3::ZERO,
+        inv_mass: 0.0,
+        elasticity: 0.5,
+        friction: 0.0,
+        shape: box_wall1.clone(),
+    });
+    colors.push(wall_color);
+
+    bodies.push(Body {
+        position: Vec3::new(0.0, 0.0, -25.0),
+        orientation: Quat::IDENTITY,
+        linear_velocity: Vec3::ZERO,
+        angular_velocity: Vec3::ZERO,
+        inv_mass: 0.0,
+        elasticity: 0.5,
+        friction: 0.0,
+        shape: box_wall1.clone(),
+    });
+    colors.push(wall_color);
+}
 
 #[derive(Copy, Clone, Debug)]
 struct Contact {
@@ -42,14 +113,15 @@ impl PhysicsScene {
     }
 
     pub fn reset(&mut self) {
-        let num_bodies = 6 * 6 + 3 * 3;
+        // let num_bodies = 6 * 6 + 3 * 3;
         self.bodies.clear();
-        self.bodies.reserve(num_bodies);
+        // self.bodies.reserve(num_bodies);
         self.colors.clear();
-        self.colors.reserve(num_bodies);
+        // self.colors.reserve(num_bodies);
 
-        let ball_shape = Arc::new(Shape::make_sphere(0.5));
-        let ground_shape = Arc::new(Shape::make_sphere(80.0));
+        /*
+        let ball_shape = Shape::make_sphere(0.5);
+        let ground_shape = Shape::make_sphere(80.0);
 
         // dynamic bodies
         for x in 0..6 {
@@ -92,6 +164,7 @@ impl PhysicsScene {
                 self.colors.push(Vec3::new(0.3, 0.5, 0.3));
             }
         }
+        */
 
         /*
         // dynamic body
@@ -117,6 +190,33 @@ impl PhysicsScene {
         });
         colors.push(Color::rgb(0.3, 0.5, 0.3));
         */
+
+        // TODO: can't render this yet
+        // self.bodies.push(Body {
+        //     position: Vec3::new(0.0, 10.0, 0.0),
+        //     orientation: Quat::IDENTITY,
+        //     linear_velocity: Vec3::ZERO,
+        //     angular_velocity: Vec3::ZERO,
+        //     inv_mass: 1.0,
+        //     elasticity: 0.5,
+        //     friction: 0.5,
+        //     shape: make_diamond(),
+        // self.colors.push(Vec3::new(0.8, 0.7, 0.6));
+        // });
+
+        // self.bodies.push(Body {
+        //     position: Vec3::new(0.0, 10.0, 0.0),
+        //     orientation: Quat::IDENTITY,
+        //     linear_velocity: Vec3::ZERO,
+        //     angular_velocity: Vec3::ZERO,
+        //     inv_mass: 1.0,
+        //     elasticity: 0.5,
+        //     friction: 0.5,
+        //     shape: make_sphere(0.5),
+        // });
+        // self.colors.push(Vec3::new(0.8, 0.7, 0.6));
+
+        add_standard_sandbox(&mut self.bodies, &mut self.colors);
 
         self.handles = self
             .bodies

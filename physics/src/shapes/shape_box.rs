@@ -4,9 +4,9 @@ use glam::{Mat3, Quat, Vec3};
 
 #[derive(Clone, Debug)]
 pub struct ShapeBox {
-    points: [Vec3; 8],
-    bounds: Bounds,
-    com: Vec3,
+    pub points: [Vec3; 8],
+    pub bounds: Bounds,
+    pub center_of_mass: Vec3,
 }
 
 impl ShapeBox {
@@ -29,19 +29,19 @@ impl ShapeBox {
             Vec3::new(bounds.maxs.x, bounds.maxs.y, bounds.mins.z),
         ];
 
-        let com = (bounds.maxs + bounds.mins) * 0.5;
+        let center_of_mass = (bounds.maxs + bounds.mins) * 0.5;
 
         ShapeBox {
             points,
             bounds,
-            com,
+            center_of_mass,
         }
     }
 }
 
 impl ShapeTrait for ShapeBox {
     fn centre_of_mass(&self) -> Vec3 {
-        self.com
+        self.center_of_mass
     }
 
     fn inertia_tensor(&self) -> Mat3 {
@@ -117,7 +117,7 @@ impl ShapeTrait for ShapeBox {
     fn fastest_linear_speed(&self, angular_velocity: Vec3, dir: Vec3) -> f32 {
         let mut max_speed = 0.0;
         for pt in &self.points {
-            let r = *pt - self.com;
+            let r = *pt - self.center_of_mass;
             let linear_velocity = angular_velocity.cross(r);
             let speed = dir.dot(linear_velocity);
             if speed > max_speed {

@@ -41,6 +41,10 @@ impl Shape {
         Shape::Box(data)
     }
 
+    pub fn make_convex(data: Arc<ShapeConvex>) -> Self {
+        Shape::Convex(data)
+    }
+
     fn shape_trait(&self) -> &dyn ShapeTrait {
         // TODO: check the overhead of this
         match self {
@@ -56,6 +60,10 @@ impl Shape {
 
     pub fn inertia_tensor(&self) -> Mat3 {
         self.shape_trait().inertia_tensor()
+    }
+
+    pub fn local_bounds(&self) -> Bounds {
+        self.shape_trait().local_bounds()
     }
 
     pub fn bounds(&self, translation: Vec3, orientation: Quat) -> Bounds {

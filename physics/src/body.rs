@@ -1,6 +1,5 @@
 use crate::shapes::Shape;
 use glam::{Mat3, Quat, Vec3};
-use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct Body {
@@ -11,7 +10,7 @@ pub struct Body {
     pub inv_mass: f32,
     pub elasticity: f32,
     pub friction: f32,
-    pub shape: Arc<Shape>,
+    pub shape: Shape,
 }
 
 impl Default for Body {
@@ -24,7 +23,7 @@ impl Default for Body {
             inv_mass: 1.0,
             elasticity: 0.5,
             friction: 0.5,
-            shape: Arc::new(Shape::default()),
+            shape: Shape::default(),
         }
     }
 }

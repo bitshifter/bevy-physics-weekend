@@ -128,7 +128,18 @@ fn setup_rendering(
                     radius,
                     subdivisions,
                 }))
-            }
+            },
+            Shape::Box(box_data) => {
+                let bounds = box_data.bounds;
+                meshes.add(Mesh::from(shape::Box {
+                    min_x: bounds.mins.x,
+                    max_x: bounds.maxs.x,
+                    min_y: bounds.mins.y,
+                    max_y: bounds.maxs.y,
+                    min_z: bounds.mins.z,
+                    max_z: bounds.maxs.z,
+                }))
+            },
             _ => unimplemented!(),
         };
         commands
