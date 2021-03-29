@@ -1,11 +1,9 @@
+mod render;
 mod time_accumulator;
 
-use bevy::{prelude::*, render::mesh::shape::Icosphere};
+use bevy::prelude::*;
 use bevy_flycam::PlayerPlugin;
-use physics::{
-    scene::{BodyHandle, PhysicsScene},
-    shapes::Shape,
-};
+use physics::scene::{BodyHandle, PhysicsScene};
 use std::borrow::Borrow;
 use time_accumulator::TimeAccumulator;
 
@@ -120,28 +118,7 @@ fn setup_rendering(
         let body = physics_scene.get_body(body_handle);
         let color = physics_scene.get_color(body_handle);
         let color = Color::rgb(color.x, color.y, color.z);
-        let mesh = match body.shape.borrow() {
-            Shape::Sphere(sphere) => {
-                let radius = sphere.radius;
-                let subdivisions = (radius as usize).max(10).min(50);
-                meshes.add(Mesh::from(Icosphere {
-                    radius,
-                    subdivisions,
-                }))
-            },
-            Shape::Box(box_data) => {
-                let bounds = box_data.bounds;
-                meshes.add(Mesh::from(shape::Box {
-                    min_x: bounds.mins.x,
-                    max_x: bounds.maxs.x,
-                    min_y: bounds.mins.y,
-                    max_y: bounds.maxs.y,
-                    min_z: bounds.mins.z,
-                    max_z: bounds.maxs.z,
-                }))
-            },
-            _ => unimplemented!(),
-        };
+        let mesh = meshes.add(render::create_mesh_from_shape(body.shape.borrow()));
         commands
             .spawn(PbrBundle {
                 mesh,

@@ -69,10 +69,10 @@ fn find_point_furthest_from_triangle(pts: &[Vec3], a: Vec3, b: Vec3, c: Vec3) ->
 }
 
 #[derive(Clone, Copy, Debug)]
-struct Tri {
-    a: u32,
-    b: u32,
-    c: u32,
+pub struct Tri {
+    pub a: u32,
+    pub b: u32,
+    pub c: u32,
 }
 
 fn build_tetrahedron(verts: &[Vec3], hull_points: &mut Vec<Vec3>, hull_tris: &mut Vec<Tri>) {
@@ -312,7 +312,7 @@ fn expand_convex_hull(hull_points: &mut Vec<Vec3>, hull_tris: &mut Vec<Tri>, ver
     remove_unreferenced_verts(hull_points, hull_tris);
 }
 
-fn build_convex_hull(verts: &[Vec3], hull_points: &mut Vec<Vec3>, hull_tris: &mut Vec<Tri>) {
+pub fn build_convex_hull(verts: &[Vec3], hull_points: &mut Vec<Vec3>, hull_tris: &mut Vec<Tri>) {
     if verts.len() < 4 {
         return;
     }
@@ -441,6 +441,10 @@ impl ShapeConvex {
             centre_of_mass,
             inertia_tensor,
         }
+    }
+
+    pub fn points(&self) -> &[Vec3] {
+        &self.points
     }
 }
 

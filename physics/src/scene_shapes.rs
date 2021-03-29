@@ -38,6 +38,7 @@ const BOX_WALL1: [Vec3; 8] = [
     const_vec3!([W, 5.0, 1.0]),
 ];
 
+#[allow(dead_code)]
 pub fn make_sphere(radius: f32) -> Shape {
     Shape::make_sphere(radius)
 }
@@ -54,6 +55,7 @@ pub fn make_box_wall1() -> Shape {
     Shape::make_box(Arc::new(ShapeBox::new(&BOX_WALL1)))
 }
 
+#[allow(dead_code)]
 pub fn make_diamond() -> Shape {
     let mut diamond = [Vec3::ZERO; 7 * 8];
     let quat_half = Quat::from_rotation_y(2.0 * std::f32::consts::PI * 0.125 * 0.5);

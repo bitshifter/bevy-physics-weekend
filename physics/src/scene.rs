@@ -192,17 +192,17 @@ impl PhysicsScene {
         */
 
         // TODO: can't render this yet
-        // self.bodies.push(Body {
-        //     position: Vec3::new(0.0, 10.0, 0.0),
-        //     orientation: Quat::IDENTITY,
-        //     linear_velocity: Vec3::ZERO,
-        //     angular_velocity: Vec3::ZERO,
-        //     inv_mass: 1.0,
-        //     elasticity: 0.5,
-        //     friction: 0.5,
-        //     shape: make_diamond(),
-        // self.colors.push(Vec3::new(0.8, 0.7, 0.6));
-        // });
+        self.bodies.push(Body {
+            position: Vec3::new(0.0, 10.0, 0.0),
+            orientation: Quat::IDENTITY,
+            linear_velocity: Vec3::ZERO,
+            angular_velocity: Vec3::ZERO,
+            inv_mass: 1.0,
+            elasticity: 0.5,
+            friction: 0.5,
+            shape: make_diamond(),
+        });
+        self.colors.push(Vec3::new(0.8, 0.7, 0.6));
 
         // self.bodies.push(Body {
         //     position: Vec3::new(0.0, 10.0, 0.0),
