@@ -33,18 +33,22 @@ impl Default for Shape {
 }
 
 impl Shape {
+    #[inline]
     pub fn make_sphere(radius: f32) -> Self {
         Shape::Sphere(ShapeSphere { radius })
     }
 
+    #[inline]
     pub fn make_box(data: Arc<ShapeBox>) -> Self {
         Shape::Box(data)
     }
 
+    #[inline]
     pub fn make_convex(data: Arc<ShapeConvex>) -> Self {
         Shape::Convex(data)
     }
 
+    #[inline(always)]
     fn shape_trait(&self) -> &dyn ShapeTrait {
         // TODO: check the overhead of this
         match self {
@@ -54,19 +58,28 @@ impl Shape {
         }
     }
 
+    #[inline]
     pub fn centre_of_mass(&self) -> Vec3 {
         self.shape_trait().centre_of_mass()
     }
 
+    #[inline]
     pub fn inertia_tensor(&self) -> Mat3 {
         self.shape_trait().inertia_tensor()
     }
 
+    #[inline]
     pub fn local_bounds(&self) -> Bounds {
         self.shape_trait().local_bounds()
     }
 
+    #[inline]
     pub fn bounds(&self, translation: Vec3, orientation: Quat) -> Bounds {
         self.shape_trait().bounds(translation, orientation)
+    }
+
+    #[inline]
+    pub fn support(&self, dir: Vec3, pos: Vec3, orient: Quat, bias: f32) -> Vec3 {
+        self.shape_trait().support(dir, pos, orient, bias)
     }
 }

@@ -1,7 +1,24 @@
 #![allow(dead_code)]
 
-use crate::math_ext::Mat4Ext;
+use crate::{body::Body, math_ext::Mat4Ext};
 use glam::{Mat4, Vec2, Vec3, Vec4};
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+struct Point {
+    xyz: Vec3,  // The point on the minkowski sum
+    pt_a: Vec3, // the point on body a
+    pt_b: Vec3, // the point on body b
+}
+
+impl Point {
+    fn new() -> Point {
+        Self {
+            xyz: Vec3::ZERO,
+            pt_a: Vec3::ZERO,
+            pt_b: Vec3::ZERO,
+        }
+    }
+}
 
 fn signed_volume_1d(s1: Vec3, s2: Vec3) -> Vec2 {
     let ab = s2 - s1; // ray from a to b
@@ -179,6 +196,170 @@ fn signed_volume_3d(s1: Vec3, s2: Vec3, s3: Vec3, s4: Vec3) -> Vec4 {
         }
         lambdas
     }
+}
+
+fn support(body_a: &Body, body_b: &Body, dir: Vec3, bias: f32) -> Point {
+    let dir = dir.normalize();
+
+    // Find the point in A furthest direction
+    let pt_a = body_a
+        .shape
+        .support(dir, body_a.position, body_a.orientation, bias);
+
+    let dir = -dir;
+
+    // Find the point in B furthest direction
+    let pt_b = body_b
+        .shape
+        .support(dir, body_b.position, body_b.orientation, bias);
+
+    // Return the point in the minkowski sum, furthest in the direction
+    Point {
+        xyz: pt_a - pt_b,
+        pt_a,
+        pt_b,
+    }
+}
+
+/// Projects the origin onto the simplex to acquire the new search direction, also checks if the
+/// origin is "inside" the simplex.
+fn simple_signed_volumes(pts: &[Point], new_dir: &mut Vec3, lambdas_out: &mut Vec4) -> bool {
+    const EPSILON: f32 = 0.0001 * 0.0001;
+    match pts.len() {
+        2 => {
+            let lambdas = signed_volume_1d(pts[0].xyz, pts[1].xyz);
+            let mut v = Vec3::ZERO;
+            for i in 0..2 {
+                v += pts[i].xyz * lambdas[i];
+            }
+            *new_dir = -v;
+            *lambdas_out = Vec4::new(lambdas.x, lambdas.y, 0.0, 0.0);
+            v.length_squared() < EPSILON
+        }
+        3 => {
+            let lambdas = signed_volume_2d(pts[0].xyz, pts[1].xyz, pts[2].xyz);
+            let mut v = Vec3::ZERO;
+            for i in 0..3 {
+                v += pts[i].xyz * lambdas[i];
+            }
+            *new_dir = -v;
+            *lambdas_out = Vec4::from((lambdas, 0.0));
+            v.length_squared() < EPSILON
+        }
+        4 => {
+            let lambdas = signed_volume_3d(pts[0].xyz, pts[1].xyz, pts[2].xyz, pts[3].xyz);
+            let mut v = Vec3::ZERO;
+            for i in 0..4 {
+                v += pts[i].xyz * lambdas[i];
+            }
+            *new_dir = -v;
+            *lambdas_out = lambdas;
+            v.length_squared() < EPSILON
+        }
+        _ => unreachable!(),
+    }
+}
+
+/// Checks whether the new point already exists in the simplex
+fn has_point(simplex_points: &[Point; 4], new_pt: &Point) -> bool {
+    const PRECISION_SQ: f32 = 1e-6 * 1e-6;
+    for pt in simplex_points {
+        let delta = pt.xyz - new_pt.xyz;
+        if delta.length_squared() < PRECISION_SQ {
+            return true;
+        }
+    }
+    false
+}
+
+/// Sorts the valid support points to the beginning of the array
+fn sort_valids(simplex_points: &mut [Point; 4], lambdas: &mut Vec4) {
+    let mut valids = [true; 4];
+    for i in 0..4 {
+        if lambdas[i] == 0.0 {
+            valids[i] = false;
+        }
+    }
+
+    let mut valid_lambdas = Vec4::ZERO;
+    let mut valid_count = 0;
+    let mut valid_points = [Point::new(); 4];
+    for i in 0..4 {
+        if valids[i] {
+            valid_points[valid_count] = simplex_points[i];
+            valid_lambdas[valid_count] = lambdas[i];
+            valid_count += 1;
+        }
+    }
+
+    // Copy the valids back into simplex points
+    for i in 0..4 {
+        simplex_points[i] = valid_points[i];
+        lambdas[i] = valid_lambdas[i];
+    }
+}
+
+fn num_valids(lambdas: &Vec4) -> usize {
+    let mut num = 0;
+    for i in 0..4 {
+        if lambdas[i] != 0.0 {
+            num += 1;
+        }
+    }
+    num
+}
+
+fn gjk_does_intersect(body_a: &Body, body_b: &Body) -> bool {
+    const ORIGIN: Vec3 = Vec3::ZERO;
+
+    let mut num_pts = 1;
+    let mut simplex_points = [Point::new(); 4];
+    simplex_points[0] = support(body_a, body_b, Vec3::ONE, 0.0);
+
+    let mut closest_dist = f32::MAX;
+    let mut does_contain_origin = false;
+    let mut new_dir = -simplex_points[0].xyz;
+    loop {
+        // Get the new point to check on
+        let new_pt = support(body_a, body_b, new_dir, 0.0);
+        if has_point(&simplex_points, &new_pt) {
+            break;
+        }
+
+        simplex_points[num_pts] = new_pt;
+        num_pts += 1;
+
+        // If this new point hasn't moved past the origin then the origin can not be in the set.
+        // Therefore there is no collision.
+        let dotdot = new_dir.dot(new_pt.xyz - ORIGIN);
+        if dotdot < 0.0 {
+            break;
+        }
+
+        let mut lambdas = Vec4::ZERO;
+        does_contain_origin =
+            simple_signed_volumes(&simplex_points[0..num_pts], &mut new_dir, &mut lambdas);
+        if does_contain_origin {
+            break;
+        }
+
+        // Check that the new projection of the origin onto the simplex is closer than the previous
+        let dist = new_dir.length_squared();
+        if dist >= closest_dist {
+            break;
+        }
+        closest_dist = dist;
+
+        // Use the lambdas that support the new search direction and invalidate any points that
+        // don't support it
+        sort_valids(&mut simplex_points, &mut lambdas);
+        num_pts = num_valids(&lambdas);
+        does_contain_origin = num_pts == 4;
+        if does_contain_origin {
+            break;
+        }
+    }
+    does_contain_origin
 }
 
 #[test]
