@@ -1,6 +1,7 @@
 /.cargo
 /.vs
 /.vscode
+/physics/.vscode
 /physics/target
 /target
 /Session.vim
