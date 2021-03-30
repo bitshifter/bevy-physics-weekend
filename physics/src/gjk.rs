@@ -317,36 +317,35 @@ fn gjk_does_intersect(body_a: &Body, body_b: &Body) -> bool {
     simplex_points[0] = support(body_a, body_b, Vec3::ONE, 0.0);
 
     let mut closest_dist = f32::MAX;
-    let mut does_contain_origin = false;
     let mut new_dir = -simplex_points[0].xyz;
     loop {
         // Get the new point to check on
         let new_pt = support(body_a, body_b, new_dir, 0.0);
+
+        // If the new point is the same as a previous point then we can't expand any further
         if has_point(&simplex_points, &new_pt) {
-            break;
+            return false;
         }
 
         simplex_points[num_pts] = new_pt;
         num_pts += 1;
 
-        // If this new point hasn't moved past the origin then the origin can not be in the set.
-        // Therefore there is no collision.
+        // If this new point hasn't moved past the origin then the origin can not be in the set
+        // and therefore there is no collision.
         let dotdot = new_dir.dot(new_pt.xyz - ORIGIN);
         if dotdot < 0.0 {
-            break;
+            return false;
         }
 
         let mut lambdas = Vec4::ZERO;
-        does_contain_origin =
-            simple_signed_volumes(&simplex_points[0..num_pts], &mut new_dir, &mut lambdas);
-        if does_contain_origin {
-            break;
+        if simple_signed_volumes(&simplex_points[0..num_pts], &mut new_dir, &mut lambdas) {
+            return true;
         }
 
         // Check that the new projection of the origin onto the simplex is closer than the previous
         let dist = new_dir.length_squared();
         if dist >= closest_dist {
-            break;
+            return false;
         }
         closest_dist = dist;
 
@@ -354,12 +353,10 @@ fn gjk_does_intersect(body_a: &Body, body_b: &Body) -> bool {
         // don't support it
         sort_valids(&mut simplex_points, &mut lambdas);
         num_pts = num_valids(&lambdas);
-        does_contain_origin = num_pts == 4;
-        if does_contain_origin {
-            break;
+        if num_pts == 4 {
+            return true;
         }
     }
-    does_contain_origin
 }
 
 #[test]
