@@ -159,9 +159,9 @@ fn remove_internal_points(hull_points: &[Vec3], hull_tris: &[Tri], check_pts: &m
 }
 
 #[derive(Copy, Clone, Debug)]
-struct Edge {
-    a: u32,
-    b: u32,
+pub struct Edge {
+    pub a: u32,
+    pub b: u32,
 }
 
 impl PartialEq for Edge {

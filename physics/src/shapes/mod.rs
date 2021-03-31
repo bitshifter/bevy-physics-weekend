@@ -7,7 +7,7 @@ use glam::{Mat3, Quat, Vec3};
 use std::{ops::Deref, sync::Arc};
 
 pub use shape_box::ShapeBox;
-pub use shape_convex::{build_convex_hull, ShapeConvex, Tri};
+pub use shape_convex::{build_convex_hull, Edge, ShapeConvex, Tri};
 pub use shape_sphere::ShapeSphere;
 
 trait ShapeTrait {
