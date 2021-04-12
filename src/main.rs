@@ -58,61 +58,16 @@ fn copy_transforms_system(
 }
 
 fn setup_rendering(
-    commands: &mut Commands,
+    mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     physics_scene: Res<PhysicsScene>,
 ) {
     commands
-        // // plane
-        // .spawn(PbrBundle {
-        //     mesh: meshes.add(Mesh::from(shape::Plane { size: 100.0 })),
-        //     material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
-        //     ..Default::default()
-        // })
-        // sphere
-        // .spawn(PbrBundle {
-        //     mesh: meshes.add(Mesh::from(shape::Icosphere {
-        //         radius: 1.0,
-        //         ..Default::default()
-        //     })),
-        //     material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
-        //     transform: Transform::from_translation(Vec3::new(0.0, 2.0, 0.0)),
-        //     ..Default::default()
-        // })
-        // .with(Body {
-        //     shape: Shape::Sphere { radius: 1.0 },
-        //     position: Vec3::new(0.0, 2.0, 0.0),
-        //     ..Default::default()
-        // })
-        // ground "sphere" that won't fall under influence of gravity
-        // .spawn(PbrBundle {
-        //     mesh: meshes.add(Mesh::from(shape::Icosphere {
-        //         radius: 1000.0,
-        //         ..Default::default()
-        //     })),
-        //     material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
-        //     ..Default::default()
-        // })
-        // .with(Body {
-        //     shape: Shape::Sphere { radius: 1000.0 },
-        //     position: Vec3::new(0.0, -1000.0, 0.0),
-        //     inv_mass: 0.0,
-        //     ..Default::default()
-        // })
-        // // light
-        .spawn(LightBundle {
+        .spawn_bundle(LightBundle {
             transform: Transform::from_translation(Vec3::new(4.0, 8.0, 4.0)),
-            ..Default::default() // })
-                                 // // camera
-                                 // .spawn(Camera3dBundle {
-                                 //     transform: Transform::from_translation(Vec3::new(-40.0, 25.0, 0.0))
-                                 //         .looking_at(Vec3::ZERO, Vec3::Y),
-                                 //     ..Default::default()
+            ..Default::default()
         });
-    // .with(FlyCamera {
-    //     sensitivity: 10.0,
-    //     ..Default::default()});
 
     for body_handle in physics_scene.handles().iter() {
         let body = physics_scene.get_body(body_handle);
@@ -120,20 +75,20 @@ fn setup_rendering(
         let color = Color::rgb(color.x, color.y, color.z);
         let mesh = meshes.add(render::create_mesh_from_shape(body.shape.borrow()));
         commands
-            .spawn(PbrBundle {
+            .spawn_bundle(PbrBundle {
                 mesh,
                 material: materials.add(color.into()),
                 ..Default::default()
             })
-            .with(*body_handle);
+            .insert(*body_handle);
     }
 }
 
 fn main() {
     App::build()
-        .add_resource(Msaa { samples: 4 })
-        .add_resource(PhysicsScene::new())
-        .add_resource(TimeAccumulator::new())
+        .insert_resource(Msaa { samples: 4 })
+        .insert_resource(PhysicsScene::new())
+        .insert_resource(TimeAccumulator::new())
         .add_plugins(DefaultPlugins)
         .add_plugin(PlayerPlugin)
         .add_startup_system(setup_rendering.system())
