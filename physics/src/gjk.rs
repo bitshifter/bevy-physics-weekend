@@ -742,6 +742,55 @@ fn epa_expand(
     (pt_on_a, pt_on_b)
 }
 
+fn gjk_closest_points(body_a: &Body, body_b: &Body) -> (Vec3, Vec3) {
+    let mut closest_dist = f32::MAX;
+    const BIAS: f32 = 0.0;
+
+    let mut num_pts = 1;
+
+    let mut simplex_points = [Point::new(); 4];
+    simplex_points[0] = support(body_a, body_b, Vec3::ONE, BIAS);
+
+    let mut lambdas = Vec4::new(1.0, 0.0, 0.0, 0.0);
+    let mut new_dir = -simplex_points[0].xyz;
+    loop {
+        // get the new point to check on
+        let new_pt = support(body_a, body_b, new_dir, BIAS);
+
+        // if the new point is the same as the previous point then we can't expand any further
+        if simplex_has_point(&simplex_points, &new_pt) {
+            break;
+        }
+
+        // add point and get new search direction
+        simplex_points[num_pts] = new_pt;
+        num_pts += 1;
+
+        simple_signed_volumes(&simplex_points, num_pts, &mut new_dir, &mut lambdas);
+        sort_valids(&mut simplex_points, &mut lambdas);
+        num_pts = num_valids(&lambdas);
+
+        // check that the new projection of the origin onto the simplex is closer than the previous
+        let dist = new_dir.length_squared();
+        if dist > closest_dist {
+            break;
+        }
+        closest_dist = dist;
+        if num_pts >= 4 {
+            break;
+        }
+    }
+
+    let mut pt_on_a = Vec3::ZERO;
+    let mut pt_on_b = Vec3::ZERO;
+    for (i, point) in simplex_points.iter().enumerate() {
+        pt_on_a += point.pt_a * lambdas[i];
+        pt_on_b += point.pt_b * lambdas[i];
+    }
+
+    (pt_on_a, pt_on_b)
+}
+
 #[test]
 fn test_signed_volume_projection() {
     let org_pts = [Vec3::ZERO, Vec3::X, Vec3::Y, Vec3::Z];
