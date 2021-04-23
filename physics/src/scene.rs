@@ -1,5 +1,9 @@
 use crate::{
-    body::Body, broadphase::broadphase, intersect::sphere_sphere_dynamic, scene_shapes::*,
+    body::Body,
+    broadphase::broadphase,
+    gjk::{gjk_closest_points, gjk_does_intersect},
+    intersect::{sphere_sphere_dynamic, sphere_sphere_static},
+    scene_shapes::*,
     shapes::Shape,
 };
 use glam::{Quat, Vec3};
@@ -74,7 +78,7 @@ fn add_standard_sandbox(bodies: &mut Vec<Body>, colors: &mut Vec<Vec3>) {
 }
 
 #[derive(Copy, Clone, Debug)]
-struct Contact {
+pub struct Contact {
     world_point_a: Vec3,
     world_point_b: Vec3,
     local_point_a: Vec3,
@@ -231,7 +235,7 @@ impl PhysicsScene {
         self.paused = true;
     }
 
-    fn intersect(
+    fn intersect_dynamic(
         &mut self,
         handle_a: BodyHandle,
         handle_b: BodyHandle,
@@ -292,6 +296,91 @@ impl PhysicsScene {
                 }
             }
             _ => unimplemented!(),
+        }
+    }
+
+    fn intersect_static(&mut self, handle_a: BodyHandle, handle_b: BodyHandle) -> (Contact, bool) {
+        let (body_a, body_b) = self.get_body_pair_mut(handle_a, handle_b);
+
+        match (&body_a.shape, &body_b.shape) {
+            (Shape::Sphere(sphere_a), Shape::Sphere(sphere_b)) => {
+                let pos_a = body_a.position;
+                let pos_b = body_b.position;
+
+                if let Some((world_point_a, world_point_b)) =
+                    sphere_sphere_static(sphere_a.radius, sphere_b.radius, pos_a, pos_b)
+                {
+                    (
+                        Contact {
+                            world_point_a,
+                            world_point_b,
+                            local_point_a: body_a.world_to_local(world_point_a),
+                            local_point_b: body_b.world_to_local(world_point_b),
+                            normal: (pos_a - pos_b).normalize(),
+                            separation_dist: (world_point_a - world_point_b).length(),
+                            time_of_impact: 0.0,
+                            handle_a,
+                            handle_b,
+                        },
+                        true,
+                    )
+                } else {
+                    (
+                        Contact {
+                            world_point_a: Vec3::ZERO,
+                            world_point_b: Vec3::ZERO,
+                            local_point_a: Vec3::ZERO,
+                            local_point_b: Vec3::ZERO,
+                            normal: Vec3::X,
+                            separation_dist: 0.0,
+                            time_of_impact: 0.0,
+                            handle_a,
+                            handle_b,
+                        },
+                        false,
+                    )
+                }
+            }
+            (_, _) => {
+                const BIAS: f32 = 0.001;
+                if let Some((mut world_point_a, mut world_point_b)) =
+                    gjk_does_intersect(body_a, body_b, BIAS)
+                {
+                    let normal = (world_point_b - world_point_a).normalize();
+                    world_point_a -= normal * BIAS;
+                    world_point_b += normal * BIAS;
+                    (
+                        Contact {
+                            world_point_a,
+                            world_point_b,
+                            local_point_a: body_a.world_to_local(world_point_a),
+                            local_point_b: body_b.world_to_local(world_point_b),
+                            normal,
+                            separation_dist: (world_point_a - world_point_b).length(),
+                            time_of_impact: 0.0,
+                            handle_a,
+                            handle_b,
+                        },
+                        true,
+                    )
+                } else {
+                    let (world_point_a, world_point_b) = gjk_closest_points(body_a, body_b);
+                    (
+                        Contact {
+                            world_point_a,
+                            world_point_b,
+                            local_point_a: body_a.world_to_local(world_point_a),
+                            local_point_b: body_b.world_to_local(world_point_b),
+                            normal: Vec3::ZERO,
+                            separation_dist: (world_point_a - world_point_b).length(),
+                            time_of_impact: 0.0,
+                            handle_a,
+                            handle_b,
+                        },
+                        false,
+                    )
+                }
+            }
         }
     }
 
@@ -386,7 +475,7 @@ impl PhysicsScene {
 
         // narrowphase (perform actual collision detection)
         for pair in collision_pairs {
-            if let Some(contact) = self.intersect(pair.a, pair.b, delta_seconds) {
+            if let Some(contact) = self.intersect_dynamic(pair.a, pair.b, delta_seconds) {
                 contacts.push(contact)
             }
         }

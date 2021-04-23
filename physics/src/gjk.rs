@@ -318,7 +318,7 @@ fn num_valids(lambdas: &Vec4) -> usize {
     num
 }
 
-fn gjk_does_intersect(body_a: &Body, body_b: &Body, bias: f32) -> Option<(Vec3, Vec3)> {
+pub fn gjk_does_intersect(body_a: &Body, body_b: &Body, bias: f32) -> Option<(Vec3, Vec3)> {
     const ORIGIN: Vec3 = Vec3::ZERO;
 
     let mut num_pts = 1;
@@ -742,7 +742,7 @@ fn epa_expand(
     (pt_on_a, pt_on_b)
 }
 
-fn gjk_closest_points(body_a: &Body, body_b: &Body) -> (Vec3, Vec3) {
+pub fn gjk_closest_points(body_a: &Body, body_b: &Body) -> (Vec3, Vec3) {
     let mut closest_dist = f32::MAX;
     const BIAS: f32 = 0.0;
 

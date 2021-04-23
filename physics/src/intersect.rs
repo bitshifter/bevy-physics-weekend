@@ -1,5 +1,24 @@
 use glam::Vec3;
 
+pub fn sphere_sphere_static(
+    radius_a: f32,
+    radius_b: f32,
+    pos_a: Vec3,
+    pos_b: Vec3,
+) -> Option<(Vec3, Vec3)> {
+    let ab = pos_b - pos_a;
+    let radius_ab = radius_a + radius_b;
+    let length_squared = ab.length_squared();
+    if length_squared < radius_ab * radius_ab {
+        let norm = ab.normalize_or_zero();
+        let pt_on_a = pos_a + norm * radius_a;
+        let pt_on_b = pos_b - norm * radius_b;
+        Some((pt_on_a, pt_on_b))
+    } else {
+        None
+    }
+}
+
 pub fn ray_sphere_intersect(
     ray_start: Vec3,
     ray_dir: Vec3,
