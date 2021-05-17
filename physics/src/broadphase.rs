@@ -76,8 +76,9 @@ fn build_pairs(sorted_bodies: &[PsuedoBody]) -> Vec<CollisionPair> {
             continue;
         }
 
-        for j in (i + 1)..sorted_bodies.len() {
-            let b = &sorted_bodies[j];
+        // for j in (i + 1)..sorted_bodies.len() {
+        for b in sorted_bodies.iter().skip(i + 1) {
+            // let b = &sorted_bodies[j];
             // if we've hit the end of the a element then we're done creating pairs with a
             if b.handle == a.handle {
                 break;

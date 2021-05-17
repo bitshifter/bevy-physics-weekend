@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![allow(clippy::many_single_char_names)]
 
 use crate::{
     body::Body,
@@ -51,8 +52,7 @@ fn signed_volume_1d(s1: Vec3, s2: Vec3) -> Vec2 {
 
     if (p > a && p < b) || (p > b && p < a) {
         // if p is between [a,b]
-        let lambdas = Vec2::new(c2 / mu_max, c1 / mu_max);
-        lambdas
+        Vec2::new(c2 / mu_max, c1 / mu_max) // lambdas
     } else if (a <= b && p <= a) || (a >= b && p >= a) {
         // if p is on the far side of a
         Vec2::X
@@ -63,9 +63,7 @@ fn signed_volume_1d(s1: Vec3, s2: Vec3) -> Vec2 {
 }
 
 fn compare_signs(a: f32, b: f32) -> i32 {
-    if a > 0.0 && b > 0.0 {
-        1
-    } else if a < 0.0 && b < 0.0 {
+    if (a > 0.0 && b > 0.0) || (a < 0.0 && b < 0.0) {
         1
     } else {
         0
@@ -172,8 +170,7 @@ fn signed_volume_3d(s1: Vec3, s2: Vec3, s3: Vec3, s4: Vec3) -> Vec4 {
         && compare_signs(det_m, c4[3]) > 0
     {
         // If the barycentric coordinates put the origin inside the simplex, then return them
-        let lambdas = c4 * det_m.recip();
-        lambdas
+        c4 * det_m.recip() // lambdas
     } else {
         // If we get here, then we need to project the origin onto the faces and determine the
         // closest one
@@ -388,8 +385,7 @@ pub fn gjk_does_intersect(body_a: &Body, body_b: &Body, bias: f32) -> Option<(Ve
             };
             let u = w.cross(n).normalize();
             let v = n.cross(u).normalize();
-            let u = v.cross(n).normalize();
-            u
+            v.cross(n).normalize()
         };
 
         let new_dir = u;
@@ -507,8 +503,7 @@ fn signed_distance_to_triangle(tri: &Tri, pt: Vec3, points: &[Point]) -> f32 {
     let normal = normal_direction(tri, points);
     let a = points[tri.a as usize].xyz;
     let a2pt = pt - a;
-    let dist = normal.dot(a2pt);
-    dist
+    normal.dot(a2pt)
 }
 
 // TODO: could return &Tri?

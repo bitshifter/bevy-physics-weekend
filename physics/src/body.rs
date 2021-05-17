@@ -41,13 +41,11 @@ impl Body {
     pub fn world_to_local(&self, world_point: Vec3) -> Vec3 {
         let tmp = world_point - self.centre_of_mass_world();
         let inv_orientation = self.orientation.conjugate();
-        let body_space = inv_orientation * tmp;
-        body_space
+        inv_orientation * tmp // body_space
     }
 
     pub fn local_to_world(&self, body_point: Vec3) -> Vec3 {
-        let world_point = self.centre_of_mass_world() + self.orientation * body_point;
-        world_point
+        self.centre_of_mass_world() + self.orientation * body_point // world_point
     }
 
     pub fn inv_intertia_tensor_world(&self) -> Mat3 {
@@ -141,6 +139,6 @@ impl Body {
     }
 
     pub fn has_infinite_mass(&self) -> bool {
-        return self.inv_mass == 0.0;
+        self.inv_mass == 0.0
     }
 }

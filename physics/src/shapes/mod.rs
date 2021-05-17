@@ -10,6 +10,24 @@ pub use shape_box::ShapeBox;
 pub use shape_convex::{build_convex_hull, Edge, ShapeConvex, Tri};
 pub use shape_sphere::ShapeSphere;
 
+fn find_support_point(points: &[Vec3], dir: Vec3, pos: Vec3, orient: Quat, bias: f32) -> Vec3 {
+    // find the point in the furthest in direction
+    let mut max_pt = (orient * points[0]) + pos;
+    let mut max_dist = dir.dot(max_pt);
+    for &pt in &points[1..] {
+        let pt = (orient * pt) + pos;
+        let dist = dir.dot(pt);
+        if dist > max_dist {
+            max_dist = dist;
+            max_pt = pt;
+        }
+    }
+
+    let norm = dir.normalize() * bias;
+
+    max_pt + norm
+}
+
 trait ShapeTrait {
     fn centre_of_mass(&self) -> Vec3;
     fn inertia_tensor(&self) -> Mat3;
@@ -81,5 +99,11 @@ impl Shape {
     #[inline]
     pub fn support(&self, dir: Vec3, pos: Vec3, orient: Quat, bias: f32) -> Vec3 {
         self.shape_trait().support(dir, pos, orient, bias)
+    }
+
+    #[inline]
+    pub fn fastest_linear_speed(&self, angular_velocity: Vec3, dir: Vec3) -> f32 {
+        self.shape_trait()
+            .fastest_linear_speed(angular_velocity, dir)
     }
 }

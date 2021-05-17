@@ -65,6 +65,13 @@ impl Bounds {
     // }
 }
 
+impl Default for Bounds {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Add<Vec3> for Bounds {
     type Output = Self;
     fn add(self, pt: Vec3) -> Self::Output {

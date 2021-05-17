@@ -1,4 +1,4 @@
-use super::ShapeTrait;
+use super::{find_support_point, ShapeTrait};
 use crate::bounds::Bounds;
 use glam::{Mat3, Quat, Vec3};
 
@@ -97,21 +97,7 @@ impl ShapeTrait for ShapeBox {
     }
 
     fn support(&self, dir: Vec3, pos: Vec3, orient: Quat, bias: f32) -> Vec3 {
-        // find the point in the furthest in direction
-        let mut max_pt = (orient * self.points[0]) + pos;
-        let mut max_dist = dir.dot(max_pt);
-        for pt in &self.points[1..] {
-            let pt = (orient * *pt) + pos;
-            let dist = dir.dot(pt);
-            if dist > max_dist {
-                max_dist = dist;
-                max_pt = pt;
-            }
-        }
-
-        let norm = dir.normalize() * bias;
-
-        max_pt + norm
+        find_support_point(&self.points, dir, pos, orient, bias)
     }
 
     fn fastest_linear_speed(&self, angular_velocity: Vec3, dir: Vec3) -> f32 {

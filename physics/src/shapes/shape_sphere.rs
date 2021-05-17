@@ -36,6 +36,6 @@ impl ShapeTrait for ShapeSphere {
     }
 
     fn fastest_linear_speed(&self, _angular_velocity: Vec3, _dir: Vec3) -> f32 {
-        unimplemented!()
+        0.0
     }
 }

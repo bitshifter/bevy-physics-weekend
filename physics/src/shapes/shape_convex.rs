@@ -1,7 +1,7 @@
 // TODO: remove
 #![allow(dead_code)]
 
-use super::ShapeTrait;
+use super::{find_support_point, ShapeTrait};
 use crate::bounds::Bounds;
 use glam::{Mat3, Quat, Vec3};
 
@@ -10,8 +10,8 @@ use glam::{Mat3, Quat, Vec3};
 fn find_point_furthest_in_dir(pts: &[Vec3], dir: Vec3) -> usize {
     let mut max_idx = 0;
     let mut max_dist = dir.dot(pts[0]);
-    for i in 1..pts.len() {
-        let dist = dir.dot(pts[i]);
+    for (i, &pt) in pts.iter().enumerate().skip(1) {
+        let dist = dir.dot(pt);
         if dist > max_dist {
             max_dist = dist;
             max_idx = i;
@@ -33,8 +33,8 @@ fn find_point_furthest_from_line(pts: &[Vec3], a: Vec3, b: Vec3) -> Vec3 {
     // TODO: ab is recalculated every time
     let mut max_idx = 0;
     let mut max_dist = distance_from_line(a, b, pts[0]);
-    for i in 1..pts.len() {
-        let dist = distance_from_line(a, b, pts[i]);
+    for (i, &pt) in pts.iter().enumerate().skip(1) {
+        let dist = distance_from_line(a, b, pt);
         if dist > max_dist {
             max_dist = dist;
             max_idx = i;
@@ -49,17 +49,16 @@ fn distance_from_triangle(a: Vec3, b: Vec3, c: Vec3, pt: Vec3) -> f32 {
     let normal = ab.cross(ac).normalize();
 
     let ray = pt - a;
-    let dist = ray.dot(normal);
-    dist
+    ray.dot(normal)
 }
 
 fn find_point_furthest_from_triangle(pts: &[Vec3], a: Vec3, b: Vec3, c: Vec3) -> Vec3 {
     // TODO: don't need the index, could track the point
     let mut max_idx = 0;
     let mut max_dist = distance_from_triangle(a, b, c, pts[0]);
-    for i in 1..pts.len() {
+    for (i, &pt) in pts.iter().enumerate().skip(1) {
         // TODO: triangle normal is recalculated every iteration
-        let dist = distance_from_triangle(a, b, c, pts[i]);
+        let dist = distance_from_triangle(a, b, c, pt);
         if dist * dist > max_dist * max_dist {
             max_dist = dist;
             max_idx = i;
@@ -175,8 +174,7 @@ impl Eq for Edge {}
 // This will compare the incoming edge with all the edges in the facing tris and then return true
 // if it's unique.
 fn is_edge_unique(tris: &[Tri], facing_tris: &[u32], ignore_tri: u32, edge: &Edge) -> bool {
-    for i in 0..facing_tris.len() {
-        let tri_idx = facing_tris[i];
+    for &tri_idx in facing_tris {
         if ignore_tri == tri_idx {
             continue;
         }
@@ -189,8 +187,8 @@ fn is_edge_unique(tris: &[Tri], facing_tris: &[u32], ignore_tri: u32, edge: &Edg
             Edge { a: tri.c, b: tri.a },
         ];
 
-        for e in 0..3 {
-            if edge == &edges[e] {
+        for e in &edges {
+            if *edge == *e {
                 return false;
             }
         }
@@ -483,8 +481,8 @@ impl ShapeTrait for ShapeConvex {
         bounds
     }
 
-    fn support(&self, _dir: Vec3, _pos: Vec3, _orient: Quat, _bias: f32) -> Vec3 {
-        unimplemented!();
+    fn support(&self, dir: Vec3, pos: Vec3, orient: Quat, bias: f32) -> Vec3 {
+        find_support_point(&self.points, dir, pos, orient, bias)
     }
 
     fn fastest_linear_speed(&self, angular_velocity: Vec3, dir: Vec3) -> f32 {
