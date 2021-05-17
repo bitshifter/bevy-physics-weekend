@@ -1,13 +1,5 @@
-use crate::{
-    body::Body,
-    broadphase::broadphase,
-    gjk::{gjk_closest_points, gjk_does_intersect},
-    intersect::{sphere_sphere_dynamic, sphere_sphere_static},
-    scene_shapes::*,
-    shapes::Shape,
-};
+use crate::{body::Body, broadphase::broadphase, intersect::intersect_dynamic, scene_shapes::*};
 use glam::{Quat, Vec3};
-use std::borrow::Borrow;
 
 fn add_standard_sandbox(bodies: &mut Vec<Body>, colors: &mut Vec<Vec3>) {
     let wall_color = Vec3::splat(0.5);
@@ -24,7 +16,7 @@ fn add_standard_sandbox(bodies: &mut Vec<Body>, colors: &mut Vec<Vec3>) {
         inv_mass: 0.0,
         elasticity: 0.5,
         friction: 0.5,
-        shape: box_ground.clone(),
+        shape: box_ground,
     });
     colors.push(Vec3::new(0.3, 0.5, 0.3));
 
@@ -48,7 +40,7 @@ fn add_standard_sandbox(bodies: &mut Vec<Body>, colors: &mut Vec<Vec3>) {
         inv_mass: 0.0,
         elasticity: 0.5,
         friction: 0.0,
-        shape: box_wall0.clone(),
+        shape: box_wall0,
     });
     colors.push(wall_color);
 
@@ -72,24 +64,24 @@ fn add_standard_sandbox(bodies: &mut Vec<Body>, colors: &mut Vec<Vec3>) {
         inv_mass: 0.0,
         elasticity: 0.5,
         friction: 0.0,
-        shape: box_wall1.clone(),
+        shape: box_wall1,
     });
     colors.push(wall_color);
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct Contact {
-    world_point_a: Vec3,
-    world_point_b: Vec3,
-    local_point_a: Vec3,
-    local_point_b: Vec3,
-    normal: Vec3,
+    pub world_point_a: Vec3,
+    pub world_point_b: Vec3,
+    pub local_point_a: Vec3,
+    pub local_point_b: Vec3,
+    pub normal: Vec3,
 
-    separation_dist: f32,
-    time_of_impact: f32,
+    pub separation_dist: f32,
+    pub time_of_impact: f32,
 
-    handle_a: BodyHandle,
-    handle_b: BodyHandle,
+    pub handle_a: BodyHandle,
+    pub handle_b: BodyHandle,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -195,30 +187,29 @@ impl PhysicsScene {
         colors.push(Color::rgb(0.3, 0.5, 0.3));
         */
 
-        // TODO: can't render this yet
         self.bodies.push(Body {
-            position: Vec3::new(0.0, 10.0, 0.0),
+            position: Vec3::new(10.0, 3.0, 0.0),
             orientation: Quat::IDENTITY,
-            linear_velocity: Vec3::ZERO,
+            linear_velocity: Vec3::new(-100.0, 0.0, 0.0),
             angular_velocity: Vec3::ZERO,
+            inv_mass: 1.0,
+            elasticity: 0.5,
+            friction: 0.5,
+            shape: make_sphere(0.5),
+        });
+        self.colors.push(Vec3::new(0.8, 0.7, 0.6));
+
+        self.bodies.push(Body {
+            position: Vec3::new(-10.0, 3.0, 0.0),
+            orientation: Quat::IDENTITY,
+            linear_velocity: Vec3::new(100.0, 0.0, 0.0),
+            angular_velocity: Vec3::new(0.0, 0.0, 10.0),
             inv_mass: 1.0,
             elasticity: 0.5,
             friction: 0.5,
             shape: make_diamond(),
         });
         self.colors.push(Vec3::new(0.8, 0.7, 0.6));
-
-        // self.bodies.push(Body {
-        //     position: Vec3::new(0.0, 10.0, 0.0),
-        //     orientation: Quat::IDENTITY,
-        //     linear_velocity: Vec3::ZERO,
-        //     angular_velocity: Vec3::ZERO,
-        //     inv_mass: 1.0,
-        //     elasticity: 0.5,
-        //     friction: 0.5,
-        //     shape: make_sphere(0.5),
-        // });
-        // self.colors.push(Vec3::new(0.8, 0.7, 0.6));
 
         add_standard_sandbox(&mut self.bodies, &mut self.colors);
 
@@ -233,155 +224,6 @@ impl PhysicsScene {
         self.contacts.replace(Vec::with_capacity(max_contacts));
 
         self.paused = true;
-    }
-
-    fn intersect_dynamic(
-        &mut self,
-        handle_a: BodyHandle,
-        handle_b: BodyHandle,
-        delta_seconds: f32,
-    ) -> Option<Contact> {
-        let (body_a, body_b) = self.get_body_pair_mut(handle_a, handle_b);
-
-        // skip body pairs with infinite mass
-        if body_a.has_infinite_mass() && body_b.has_infinite_mass() {
-            return None;
-        }
-
-        let shape_a = body_a.shape.clone();
-        let shape_b = body_b.shape.clone();
-        let shapes = (shape_a.borrow(), shape_b.borrow());
-        match shapes {
-            (Shape::Sphere(sphere_a), Shape::Sphere(sphere_b)) => {
-                if let Some((world_point_a, world_point_b, time_of_impact)) = sphere_sphere_dynamic(
-                    sphere_a.radius,
-                    sphere_b.radius,
-                    body_a.position,
-                    body_b.position,
-                    body_a.linear_velocity,
-                    body_b.linear_velocity,
-                    delta_seconds,
-                ) {
-                    // step bodies forward to get local space collision points
-                    body_a.update(time_of_impact);
-                    body_b.update(time_of_impact);
-
-                    // convert world space contacts to local space
-                    let local_point_a = body_a.world_to_local(world_point_a);
-                    let local_point_b = body_b.world_to_local(world_point_b);
-
-                    let normal = (body_a.position - body_b.position).normalize();
-
-                    // unwind time step
-                    body_a.update(-time_of_impact);
-                    body_b.update(-time_of_impact);
-
-                    // calculate the separation distance
-                    let ab = body_a.position - body_b.position;
-                    let separation_dist = ab.length() - (sphere_a.radius + sphere_b.radius);
-
-                    Some(Contact {
-                        world_point_a,
-                        world_point_b,
-                        local_point_a,
-                        local_point_b,
-                        normal,
-                        separation_dist,
-                        time_of_impact,
-                        handle_a,
-                        handle_b,
-                    })
-                } else {
-                    None
-                }
-            }
-            _ => unimplemented!(),
-        }
-    }
-
-    fn intersect_static(&mut self, handle_a: BodyHandle, handle_b: BodyHandle) -> (Contact, bool) {
-        let (body_a, body_b) = self.get_body_pair_mut(handle_a, handle_b);
-
-        match (&body_a.shape, &body_b.shape) {
-            (Shape::Sphere(sphere_a), Shape::Sphere(sphere_b)) => {
-                let pos_a = body_a.position;
-                let pos_b = body_b.position;
-
-                if let Some((world_point_a, world_point_b)) =
-                    sphere_sphere_static(sphere_a.radius, sphere_b.radius, pos_a, pos_b)
-                {
-                    (
-                        Contact {
-                            world_point_a,
-                            world_point_b,
-                            local_point_a: body_a.world_to_local(world_point_a),
-                            local_point_b: body_b.world_to_local(world_point_b),
-                            normal: (pos_a - pos_b).normalize(),
-                            separation_dist: (world_point_a - world_point_b).length(),
-                            time_of_impact: 0.0,
-                            handle_a,
-                            handle_b,
-                        },
-                        true,
-                    )
-                } else {
-                    (
-                        Contact {
-                            world_point_a: Vec3::ZERO,
-                            world_point_b: Vec3::ZERO,
-                            local_point_a: Vec3::ZERO,
-                            local_point_b: Vec3::ZERO,
-                            normal: Vec3::X,
-                            separation_dist: 0.0,
-                            time_of_impact: 0.0,
-                            handle_a,
-                            handle_b,
-                        },
-                        false,
-                    )
-                }
-            }
-            (_, _) => {
-                const BIAS: f32 = 0.001;
-                if let Some((mut world_point_a, mut world_point_b)) =
-                    gjk_does_intersect(body_a, body_b, BIAS)
-                {
-                    let normal = (world_point_b - world_point_a).normalize();
-                    world_point_a -= normal * BIAS;
-                    world_point_b += normal * BIAS;
-                    (
-                        Contact {
-                            world_point_a,
-                            world_point_b,
-                            local_point_a: body_a.world_to_local(world_point_a),
-                            local_point_b: body_b.world_to_local(world_point_b),
-                            normal,
-                            separation_dist: (world_point_a - world_point_b).length(),
-                            time_of_impact: 0.0,
-                            handle_a,
-                            handle_b,
-                        },
-                        true,
-                    )
-                } else {
-                    let (world_point_a, world_point_b) = gjk_closest_points(body_a, body_b);
-                    (
-                        Contact {
-                            world_point_a,
-                            world_point_b,
-                            local_point_a: body_a.world_to_local(world_point_a),
-                            local_point_b: body_b.world_to_local(world_point_b),
-                            normal: Vec3::ZERO,
-                            separation_dist: (world_point_a - world_point_b).length(),
-                            time_of_impact: 0.0,
-                            handle_a,
-                            handle_b,
-                        },
-                        false,
-                    )
-                }
-            }
-        }
     }
 
     fn resolve_contact(&mut self, contact: &Contact) {
@@ -475,13 +317,17 @@ impl PhysicsScene {
 
         // narrowphase (perform actual collision detection)
         for pair in collision_pairs {
-            if let Some(contact) = self.intersect_dynamic(pair.a, pair.b, delta_seconds) {
+            let (body_a, body_b) = self.get_body_pair_mut(pair.a, pair.b);
+            if let Some(contact) = intersect_dynamic(pair.a, body_a, pair.b, body_b, delta_seconds)
+            {
                 contacts.push(contact)
             }
         }
 
         // sort the times of impact from earliest to latest
         contacts.sort_unstable_by(|a, b| {
+            // TODO: fix lint?
+            #[allow(clippy::float_cmp)]
             if a.time_of_impact < b.time_of_impact {
                 std::cmp::Ordering::Less
             } else if a.time_of_impact == b.time_of_impact {
@@ -565,5 +411,11 @@ impl PhysicsScene {
 
     pub fn get_color(&self, handle: &BodyHandle) -> Vec3 {
         self.colors[handle.0 as usize]
+    }
+}
+
+impl Default for PhysicsScene {
+    fn default() -> Self {
+        Self::new()
     }
 }
