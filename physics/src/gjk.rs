@@ -767,7 +767,7 @@ pub fn gjk_closest_points(body_a: &Body, body_b: &Body) -> (Vec3, Vec3) {
 
         // check that the new projection of the origin onto the simplex is closer than the previous
         let dist = new_dir.length_squared();
-        if dist > closest_dist {
+        if dist >= closest_dist {
             break;
         }
         closest_dist = dist;
