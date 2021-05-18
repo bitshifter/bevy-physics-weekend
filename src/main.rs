@@ -63,11 +63,10 @@ fn setup_rendering(
     mut materials: ResMut<Assets<StandardMaterial>>,
     physics_scene: Res<PhysicsScene>,
 ) {
-    commands
-        .spawn_bundle(LightBundle {
-            transform: Transform::from_translation(Vec3::new(4.0, 8.0, 4.0)),
-            ..Default::default()
-        });
+    commands.spawn_bundle(LightBundle {
+        transform: Transform::from_translation(Vec3::new(4.0, 8.0, 4.0)),
+        ..Default::default()
+    });
 
     for body_handle in physics_scene.handles().iter() {
         let body = physics_scene.get_body(body_handle);
