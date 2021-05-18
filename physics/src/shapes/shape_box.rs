@@ -14,10 +14,10 @@ impl ShapeBox {
         assert!(!points.is_empty());
 
         let mut bounds = Bounds::new();
-        for p in points {
-            bounds.expand_by_point(*p);
+        for &p in points {
+            bounds.expand_by_point(p);
         }
-
+       
         let points = [
             Vec3::new(bounds.mins.x, bounds.mins.y, bounds.mins.z),
             Vec3::new(bounds.maxs.x, bounds.mins.y, bounds.mins.z),

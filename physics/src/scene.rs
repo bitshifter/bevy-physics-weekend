@@ -92,6 +92,7 @@ pub struct PhysicsScene {
     colors: Vec<Vec3>,
     handles: Vec<BodyHandle>,
     contacts: Option<Vec<Contact>>,
+    step_num: u64,
     pub paused: bool,
 }
 
@@ -102,6 +103,7 @@ impl PhysicsScene {
             colors: Vec::new(),
             handles: Vec::new(),
             contacts: None,
+            step_num: 0,
             paused: true,
         };
         scene.reset();
@@ -297,6 +299,8 @@ impl PhysicsScene {
     }
 
     pub fn update(&mut self, delta_seconds: f32) {
+        self.step_num += 1;
+
         for body in &mut self.bodies {
             if !body.has_infinite_mass() {
                 // gravity needs to be an impulse
@@ -352,18 +356,20 @@ impl PhysicsScene {
 
         // update positions for the rest of this frame's time
         let time_remaining = delta_seconds - accumulated_time;
-        for body in &mut self.bodies {
-            body.update(time_remaining);
+        if time_remaining > 0.0 {
+            for body in &mut self.bodies {
+                body.update(time_remaining);
+            }
         }
 
-        // for (index, body) in self.bodies.iter().enumerate() {
-        //     if !body.has_infinite_mass() {
-        //         println!(
-        //             "index: {} position: {} linvel: {} angvel: {}",
-        //             index, body.position, body.linear_velocity, body.angular_velocity
-        //         );
-        //     }
-        // }
+        for (index, body) in self.bodies.iter().enumerate() {
+            if !body.has_infinite_mass() {
+                println!(
+                    "step: {} dt: {} index: {} position: {} linvel: {} angvel: {}",
+                    self.step_num, delta_seconds, index, body.position, body.linear_velocity, body.angular_velocity
+                );
+            }
+        }
 
         // move contacts ownership back to self to avoid re-allocating next update
         self.contacts.replace(contacts);
