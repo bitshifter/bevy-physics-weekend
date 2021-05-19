@@ -111,6 +111,7 @@ impl PhysicsScene {
     }
 
     pub fn reset(&mut self) {
+        self.step_num = 0;
         // let num_bodies = 6 * 6 + 3 * 3;
         self.bodies.clear();
         // self.bodies.reserve(num_bodies);
@@ -320,8 +321,21 @@ impl PhysicsScene {
         contacts.clear();
 
         // narrowphase (perform actual collision detection)
+        let step_num = self.step_num;
         for pair in collision_pairs {
             let (body_a, body_b) = self.get_body_pair_mut(pair.a, pair.b);
+
+            // skip body pairs with infinite mass
+            if body_a.has_infinite_mass() && body_b.has_infinite_mass() {
+                continue;
+            }
+
+            if step_num == 148 {
+                dbg!(&body_a);
+                dbg!(&body_b);
+                dbg!(delta_seconds);
+            }
+
             if let Some(contact) = intersect_dynamic(pair.a, body_a, pair.b, body_b, delta_seconds)
             {
                 contacts.push(contact)
@@ -366,7 +380,12 @@ impl PhysicsScene {
             if !body.has_infinite_mass() {
                 println!(
                     "step: {} dt: {} index: {} position: {} linvel: {} angvel: {}",
-                    self.step_num, delta_seconds, index, body.position, body.linear_velocity, body.angular_velocity
+                    self.step_num,
+                    delta_seconds,
+                    index,
+                    body.position,
+                    body.linear_velocity,
+                    body.angular_velocity
                 );
             }
         }

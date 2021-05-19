@@ -416,7 +416,7 @@ pub fn gjk_does_intersect(body_a: &Body, body_b: &Body, bias: f32) -> Option<(Ve
 
     // Now expand the simplex by the bias amount
     for pt in &mut simplex_points[0..num_pts] {
-        let dir = (pt.xyz - avg).normalize();
+        let dir = (pt.xyz - avg).normalize_or_zero();
         pt.pt_a += dir * bias;
         pt.pt_b -= dir * bias;
         pt.xyz = pt.pt_a - pt.pt_b;
@@ -459,7 +459,7 @@ fn barycentric_coordinates(s1: Vec3, s2: Vec3, s3: Vec3, pt: Vec3) -> Vec3 {
     let x = (idx + 1) % 3;
     let y = (idx + 2) % 3;
     let s = [
-        Vec2::new(s1[x], s2[y]),
+        Vec2::new(s1[x], s1[y]),
         Vec2::new(s2[x], s2[y]),
         Vec2::new(s3[x], s3[y]),
     ];
@@ -626,8 +626,8 @@ fn epa_expand(
     let mut dangling_edges = Vec::new();
 
     let mut center = Vec3::ZERO;
-    for simplex_point in simplex_points {
-        points.push(*simplex_point);
+    for &simplex_point in simplex_points {
+        points.push(simplex_point);
         center += simplex_point.xyz;
     }
     center *= 0.25;

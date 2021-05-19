@@ -13,13 +13,31 @@ fn physics_update_system(
     mut accum: ResMut<TimeAccumulator>,
     mut scene: ResMut<PhysicsScene>,
 ) {
-    let delta = time.delta();
-    accum.update(delta);
-
     // T pauses the sim
     if keys.just_released(KeyCode::T) {
         scene.paused = !scene.paused;
     }
+
+    let mut dilation_change = None;
+    if keys.just_released(KeyCode::LBracket) {
+        dilation_change = Some(accum.time_dilation() * 0.5);
+    }
+
+    if keys.just_released(KeyCode::RBracket) {
+        dilation_change = Some(accum.time_dilation() * 2.0);
+    }
+
+    if keys.just_released(KeyCode::Backslash) {
+        dilation_change = Some(1.0);
+    }
+
+    if let Some(dilation) = dilation_change {
+        accum.set_time_dilation(dilation);
+        println!("time dilation: {}", dilation);
+    }
+
+    let delta = time.delta();
+    accum.update(delta);
 
     let num_steps = if scene.paused {
         // y substeps when paused

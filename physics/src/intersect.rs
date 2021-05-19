@@ -105,7 +105,7 @@ pub fn sphere_sphere_dynamic(
     // get the points on the respective points of collision
     let new_pos_a = pos_a + vel_a * toi;
     let new_pos_b = pos_b + vel_b * toi;
-    let ab = (new_pos_b - new_pos_a).normalize();
+    let ab = (new_pos_b - new_pos_a).normalize_or_zero();
 
     let pt_on_a = new_pos_a + ab * radius_a;
     let pt_on_b = new_pos_b - ab * radius_b;
@@ -163,7 +163,7 @@ fn intersect_static(
             if let Some((mut world_point_a, mut world_point_b)) =
                 gjk_does_intersect(body_a, body_b, BIAS)
             {
-                let normal = (world_point_b - world_point_a).normalize();
+                let normal = (world_point_b - world_point_a).normalize_or_zero();
                 world_point_a -= normal * BIAS;
                 world_point_b += normal * BIAS;
                 (
@@ -201,18 +201,13 @@ fn intersect_static(
     }
 }
 
-pub fn intersect_dynamic(
+pub(crate) fn intersect_dynamic(
     handle_a: BodyHandle,
     body_a: &mut Body,
     handle_b: BodyHandle,
     body_b: &mut Body,
     delta_seconds: f32,
 ) -> Option<Contact> {
-    // skip body pairs with infinite mass
-    if body_a.has_infinite_mass() && body_b.has_infinite_mass() {
-        return None;
-    }
-
     let shape_a = body_a.shape.clone();
     let shape_b = body_b.shape.clone();
     let shapes = (shape_a.borrow(), shape_b.borrow());
@@ -294,7 +289,7 @@ fn conservative_advance(
         }
 
         // get the vector from the closest point on A to the closest point on B
-        let ab = (contact.world_point_b - contact.world_point_a).normalize();
+        let ab = (contact.world_point_b - contact.world_point_a).normalize_or_zero();
 
         // project the relative velocity onto the ray of shortest distance
         let relative_velocity = body_a.linear_velocity - body_b.linear_velocity;
@@ -329,4 +324,73 @@ fn conservative_advance(
     body_b.update(-toi);
 
     None
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn test_intersect_dynamic() {
+        use crate::{
+            body::Body,
+            scene::BodyHandle,
+            scene_shapes::{make_box_ground, make_sphere},
+        };
+        use glam::{Quat, Vec3};
+        let box_ground = make_box_ground();
+        let mut body_a = Body {
+            position: Vec3::ZERO,
+            orientation: Quat::IDENTITY,
+            linear_velocity: Vec3::ZERO,
+            angular_velocity: Vec3::ZERO,
+            inv_mass: 0.0,
+            elasticity: 0.5,
+            friction: 0.5,
+            shape: box_ground,
+        };
+        let mut body_b = Body {
+            position: Vec3::new(-34.426125, 0.5000828, -0.022489173),
+            orientation: Quat::from_xyzw(0.0011291279, -0.01639718, -0.5706793, 0.8210085),
+            linear_velocity: Vec3::new(16.209578, -0.18455529, -0.031049505),
+            angular_velocity: Vec3::new(-0.013489098, -0.90430987, -29.351168),
+            inv_mass: 1.0,
+            elasticity: 0.5,
+            friction: 0.5,
+            shape: make_sphere(0.5),
+        };
+        let delta_seconds = 0.008333333;
+
+        let contact = super::intersect_dynamic(
+            BodyHandle(0),
+            &mut body_a,
+            BodyHandle(1),
+            &mut body_b,
+            delta_seconds,
+        );
+        assert!(contact.is_some());
+        let c = contact.unwrap();
+        assert_eq!(
+            Vec3::new(-34.4261169, 0.001999998, -0.0224775206),
+            c.world_point_a
+        );
+        assert_eq!(
+            Vec3::new(-34.4261284, -0.0019171942, -0.022479806),
+            c.world_point_b
+        );
+        assert_eq!(
+            Vec3::new(-34.4261169, 0.501999974, -0.0224775206),
+            c.local_point_a
+        );
+        // TODO: still different
+        // assert_eq!(
+        //     Vec3::new(-0.470389664, -0.175017402, -0.0103164278),
+        //     c.local_point_b
+        // );
+        assert_eq!(
+            Vec3::new(-0.00198972295, -0.999997914, -0.000583898218),
+            c.normal
+        );
+        // TODO: still different
+        // assert_eq!(-0.00391720934, c.separation_dist);
+        assert_eq!(0.0, c.time_of_impact);
+    }
 }
