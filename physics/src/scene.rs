@@ -379,11 +379,12 @@ impl PhysicsScene {
         for (index, body) in self.bodies.iter().enumerate() {
             if !body.has_infinite_mass() {
                 println!(
-                    "step: {} dt: {} index: {} position: {} linvel: {} angvel: {}",
+                    "step: {} dt: {} index: {} pos: {} rot: {} lin: {} ang: {}",
                     self.step_num,
                     delta_seconds,
                     index,
                     body.position,
+                    body.orientation,
                     body.linear_velocity,
                     body.angular_velocity
                 );

@@ -4,6 +4,7 @@
 use super::{find_support_point, ShapeTrait};
 use crate::bounds::Bounds;
 use glam::{Mat3, Quat, Vec3};
+use serde::{Deserialize, Serialize};
 
 // TODO: There are a lot of C style loops that could be made idomatic in here.
 
@@ -412,7 +413,7 @@ fn calculate_inertia_tensor(pts: &[Vec3], tris: &[Tri], cm: Vec3) -> Mat3 {
     Mat3::from_cols(tensor[0], tensor[1], tensor[2]) * (sample_count as f32).recip()
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ShapeConvex {
     points: Vec<Vec3>,
     bounds: Bounds,

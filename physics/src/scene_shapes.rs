@@ -1,6 +1,11 @@
 use crate::shapes::{Shape, ShapeBox, ShapeConvex};
 use glam::{const_vec3, Quat, Vec3};
-use std::sync::Arc;
+use std::{
+    error::Error,
+    fs::File,
+    io::{BufReader, BufWriter},
+    sync::Arc,
+};
 
 const W: f32 = 50.0;
 const H: f32 = 25.0;
@@ -55,8 +60,25 @@ pub fn make_box_wall1() -> Shape {
     Shape::make_box(Arc::new(ShapeBox::new(&BOX_WALL1)))
 }
 
-#[allow(dead_code)]
-pub fn make_diamond() -> Shape {
+pub fn load_convex_shape(path: &str) -> Result<ShapeConvex, Box<dyn Error>> {
+    let file = File::open(path)?;
+    let reader = BufReader::new(file);
+
+    let shape = serde_json::from_reader(reader)?;
+
+    Ok(shape)
+}
+
+pub fn save_convex_shape(path: &str, shape: &ShapeConvex) -> Result<(), Box<dyn Error>> {
+    let file = File::create(path)?;
+    let writer = BufWriter::new(file);
+
+    serde_json::to_writer_pretty(writer, shape)?;
+
+    Ok(())
+}
+
+fn make_diamond_convex_shape() -> ShapeConvex {
     let mut diamond = [Vec3::ZERO; 7 * 8];
     let quat_half = Quat::from_rotation_y(2.0 * std::f32::consts::PI * 0.125 * 0.5);
     let mut pts = [Vec3::ZERO; 7];
@@ -85,5 +107,16 @@ pub fn make_diamond() -> Shape {
         }
     }
 
-    Shape::make_convex(Arc::new(ShapeConvex::new(&diamond)))
+    ShapeConvex::new(&diamond)
+}
+
+pub fn make_diamond() -> Shape {
+    const DIAMOND_PATH: &str = "diamond.json";
+
+    let convex = load_convex_shape(DIAMOND_PATH).unwrap_or_else(|_| {
+        let convex = make_diamond_convex_shape();
+        save_convex_shape(DIAMOND_PATH, &convex).expect("failed to save diamond");
+        convex
+    });
+    Shape::make_convex(Arc::new(convex))
 }

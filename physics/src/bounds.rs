@@ -1,7 +1,8 @@
 use glam::Vec3;
+use serde::{Deserialize, Serialize};
 use std::ops::{Add, AddAssign};
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Bounds {
     pub mins: Vec3,
     pub maxs: Vec3,

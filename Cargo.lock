@@ -2549,6 +2549,8 @@ name = "physics"
 version = "0.1.0"
 dependencies = [
  "glam 0.15.1",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
