@@ -173,7 +173,7 @@ fn intersect_static(
                         local_point_a: body_a.world_to_local(world_point_a),
                         local_point_b: body_b.world_to_local(world_point_b),
                         normal,
-                        separation_dist: (world_point_a - world_point_b).length(),
+                        separation_dist: -(world_point_a - world_point_b).length(),
                         time_of_impact: 0.0,
                         handle_a,
                         handle_b,
@@ -329,7 +329,7 @@ fn conservative_advance(
 #[cfg(test)]
 mod test {
     #[test]
-    fn test_intersect_dynamic() {
+    fn test_sphere_intersect_dynamic() {
         use crate::{
             body::Body,
             scene::BodyHandle,
@@ -389,8 +389,71 @@ mod test {
             Vec3::new(-0.00198972295, -0.999997914, -0.000583898218),
             c.normal
         );
-        // TODO: still different
-        // assert_eq!(-0.00391720934, c.separation_dist);
+        assert_eq!(-0.00391720934, c.separation_dist);
         assert_eq!(0.0, c.time_of_impact);
     }
+
+    // #[test]
+    // fn test_convex_intersect_dynamic() {
+    //     use crate::{
+    //         body::Body,
+    //         scene::BodyHandle,
+    //         scene_shapes::{make_box_ground, make_diamond},
+    //     };
+    //     use glam::{Quat, Vec3};
+    //     let box_ground = make_box_ground();
+    //     let mut body_a = Body {
+    //         position: Vec3::ZERO,
+    //         orientation: Quat::IDENTITY,
+    //         linear_velocity: Vec3::ZERO,
+    //         angular_velocity: Vec3::ZERO,
+    //         inv_mass: 0.0,
+    //         elasticity: 0.5,
+    //         friction: 0.5,
+    //         shape: box_ground,
+    //     };
+    //     let mut body_b = Body {
+    //         position: Vec3::new(-10.0, 0.40208328, 0.0),
+    //         orientation: Quat::from_xyzw(1.0, 0.0, 0.0, 0.0),
+    //         linear_velocity: Vec3::new(0.0, -7.166671, 0.0),
+    //         angular_velocity: Vec3::new(0.0, 0.0, 0.0),
+    //         inv_mass: 1.0,
+    //         elasticity: 0.5,
+    //         friction: 0.5,
+    //         shape: make_diamond(),
+    //     };
+    //     let delta_seconds = 0.008333333;
+
+    //     let contact = super::intersect_dynamic(
+    //         BodyHandle(0),
+    //         &mut body_a,
+    //         BodyHandle(1),
+    //         &mut body_b,
+    //         delta_seconds,
+    //     );
+    //     assert!(contact.is_some());
+    //     let c = contact.unwrap();
+    //     assert_eq!(
+    //         Vec3::new(-9.7171545, 0.00199999963, 0.282842666),
+    //         c.world_point_a
+    //     );
+    //     assert_eq!(
+    //         Vec3::new(-9.71715832, -0.00200002943, 0.282842547),
+    //         c.world_point_b
+    //     );
+    //     assert_eq!(
+    //         Vec3::new(-34.4261169, 0.501999974, -0.0224775206),
+    //         c.local_point_a
+    //     );
+    //     assert_eq!(
+    //         Vec3::new(-9.7171545, 0.501999974, 0.282842666),
+    //         c.local_point_b
+    //     );
+    //     assert_eq!(
+    //         Vec3::new(-0.00095365959, -0.999999523, -2.98018622e-05),
+    //         c.normal
+    //     );
+    //     assert_eq!(-0.00400003092, c.separation_dist);
+    //     assert_eq!(0.0, c.time_of_impact);
+    // }
 }
