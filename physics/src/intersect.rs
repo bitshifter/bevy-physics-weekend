@@ -349,7 +349,7 @@ mod test {
         };
         let mut body_b = Body {
             position: Vec3::new(-34.426125, 0.5000828, -0.022489173),
-            orientation: Quat::from_xyzw(0.0011291279, -0.01639718, -0.5706793, 0.8210085),
+            orientation: Quat::from_xyzw(0.0011291279, -0.01639718, -0.5706793, -0.8210085),
             linear_velocity: Vec3::new(16.209578, -0.18455529, -0.031049505),
             angular_velocity: Vec3::new(-0.013489098, -0.90430987, -29.351168),
             inv_mass: 1.0,
@@ -380,11 +380,10 @@ mod test {
             Vec3::new(-34.4261169, 0.501999974, -0.0224775206),
             c.local_point_a
         );
-        // TODO: still different
-        // assert_eq!(
-        //     Vec3::new(-0.470389664, -0.175017402, -0.0103164278),
-        //     c.local_point_b
-        // );
+        assert_eq!(
+            Vec3::new(-0.470389664, -0.17501742, -0.0103164278),
+            c.local_point_b
+        );
         assert_eq!(
             Vec3::new(-0.00198972295, -0.999997914, -0.000583898218),
             c.normal
