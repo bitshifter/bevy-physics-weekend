@@ -48,6 +48,22 @@ pub fn make_sphere(radius: f32) -> Shape {
     Shape::make_sphere(radius)
 }
 
+#[allow(dead_code)]
+pub fn make_box(size: Vec3) -> Shape {
+    let half = size * 0.5;
+    let points = [
+        Vec3::new(-half.x,  half.y, -half.z),
+        Vec3::new( half.x,  half.y, -half.z),
+        Vec3::new(-half.x,  half.y,  half.z),
+        Vec3::new( half.x,  half.y,  half.z),
+        Vec3::new(-half.x, -half.y, -half.z),
+        Vec3::new( half.x, -half.y, -half.z),
+        Vec3::new(-half.x, -half.y,  half.z),
+        Vec3::new( half.x, -half.y,  half.z),
+    ];
+    Shape::make_box(Arc::new(ShapeBox::new(&points)))
+}
+
 pub fn make_box_ground() -> Shape {
     Shape::make_box(Arc::new(ShapeBox::new(&BOX_GROUND)))
 }
@@ -110,6 +126,7 @@ fn make_diamond_convex_shape() -> ShapeConvex {
     ShapeConvex::new(&diamond)
 }
 
+#[allow(dead_code)]
 pub fn make_diamond() -> Shape {
     const DIAMOND_PATH: &str = "diamond.json";
 
