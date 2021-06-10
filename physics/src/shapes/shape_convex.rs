@@ -409,8 +409,71 @@ fn calculate_inertia_tensor(pts: &[Vec3], tris: &[Tri], cm: Vec3) -> Mat3 {
         }
     }
 
-    // TODO: might need to be transposed?
     Mat3::from_cols(tensor[0], tensor[1], tensor[2]) * (sample_count as f32).recip()
+}
+
+fn calculate_center_of_mass_monte_carlo(pts: &[Vec3], tris: &[Tri]) -> Vec3 {
+    use rand::{Rng, SeedableRng};
+    let mut rng = rand_pcg::Pcg32::seed_from_u64(rand::random());
+
+    const NUM_SAMPLES: usize = 10000;
+
+    let bounds = Bounds::from_points(pts);
+
+    let mut cm = Vec3::ZERO;
+    let mut sample_count = 0;
+    for _ in 0..NUM_SAMPLES {
+        let rand3 = Vec3::new(rng.gen(), rng.gen(), rng.gen());
+        let pt = bounds.mins + rand3 * bounds.width();
+
+        if is_external(pts, tris, pt) {
+            continue;
+        }
+
+        cm += pt;
+        sample_count += 1;
+    }
+
+    cm / sample_count as f32
+}
+
+fn calculate_inertia_tensor_monte_carlo(pts: &[Vec3], tris: &[Tri], cm: Vec3) -> Mat3 {
+    use rand::{Rng, SeedableRng};
+    let mut rng = rand_pcg::Pcg32::seed_from_u64(rand::random());
+
+    const NUM_SAMPLES: usize = 10000;
+
+    let bounds = Bounds::from_points(pts);
+
+    let mut tensor = [[0.0; 3]; 3];
+    let mut sample_count = 0;
+    for _ in 0..NUM_SAMPLES {
+        let rand3 = Vec3::new(rng.gen(), rng.gen(), rng.gen());
+        let mut pt = bounds.mins + rand3 * bounds.width();
+
+        if is_external(pts, tris, pt) {
+            continue;
+        }
+
+        // get the point relative to the center of mass
+        pt -= cm;
+
+        tensor[0][0] += pt.y * pt.y + pt.z * pt.z;
+        tensor[1][1] += pt.z * pt.z + pt.x * pt.x;
+        tensor[2][2] += pt.x * pt.x + pt.y * pt.y;
+
+        tensor[0][1] += -1.0 * pt.x * pt.y;
+        tensor[0][2] += -1.0 * pt.x * pt.z;
+        tensor[1][2] += -1.0 * pt.y * pt.z;
+
+        tensor[1][0] += -1.0 * pt.x * pt.y;
+        tensor[2][0] += -1.0 * pt.x * pt.z;
+        tensor[2][1] += -1.0 * pt.y * pt.z;
+
+        sample_count += 1;
+    }
+
+    Mat3::from_cols_array_2d(&tensor) * (sample_count as f32).recip()
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

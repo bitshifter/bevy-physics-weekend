@@ -467,7 +467,7 @@ version = "0.5.0"
 source = "git+http://github.com/bitshifter/bevy?branch=latest+glam-git#40b89d437b069020ef411d6cf9bbd5fa97ceb219"
 dependencies = [
  "bevy_reflect",
- "glam 0.15.1",
+ "glam 0.16.0",
 ]
 
 [[package]]
@@ -496,7 +496,7 @@ dependencies = [
  "bevy_utils",
  "downcast-rs",
  "erased-serde",
- "glam 0.15.1",
+ "glam 0.16.0",
  "parking_lot",
  "serde",
  "smallvec",
@@ -1598,8 +1598,8 @@ checksum = "333928d5eb103c5d4050533cec0384302db6be8ef7d3cebd30ec6a35350353da"
 
 [[package]]
 name = "glam"
-version = "0.15.1"
-source = "git+https://github.com/bitshifter/glam-rs#c81410fe34622e82734090df13c9a42be1746f38"
+version = "0.16.0"
+source = "git+https://github.com/bitshifter/glam-rs#1b403eec6460ab5773647b696967eda28962609a"
 dependencies = [
  "serde",
 ]
@@ -2548,7 +2548,9 @@ dependencies = [
 name = "physics"
 version = "0.1.0"
 dependencies = [
- "glam 0.15.1",
+ "glam 0.16.0",
+ "rand",
+ "rand_pcg",
  "serde",
  "serde_json",
 ]
@@ -2646,6 +2648,15 @@ name = "rand_hc"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3190ef7066a446f2e7f42e239d161e905420ccab01eb967c9eb27d21b2322a73"
+dependencies = [
+ "rand_core",
+]
+
+[[package]]
+name = "rand_pcg"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7de198537002b913568a3847e53535ace266f93526caf5c360ec41d72c5787f0"
 dependencies = [
  "rand_core",
 ]
