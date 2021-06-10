@@ -114,13 +114,10 @@ impl PhysicsScene {
         self.step_num = 0;
         // let num_bodies = 6 * 6 + 3 * 3;
         self.bodies.clear();
-        // self.bodies.reserve(num_bodies);
         self.colors.clear();
-        // self.colors.reserve(num_bodies);
 
         /*
         let ball_shape = Shape::make_sphere(0.5);
-        let ground_shape = Shape::make_sphere(80.0);
 
         // dynamic bodies
         for x in 0..6 {
@@ -143,51 +140,6 @@ impl PhysicsScene {
             }
             // break; // HACK
         }
-
-        // static floor
-        for x in 0..3 {
-            let radius = 80.0;
-            let xx = ((x as f32) - 1.0) * radius * 0.25;
-            for z in 0..3 {
-                let zz = ((z as f32) - 1.0) * radius * 0.25;
-                self.bodies.push(Body {
-                    position: Vec3::new(xx, -radius, zz),
-                    orientation: Quat::IDENTITY,
-                    linear_velocity: Vec3::ZERO,
-                    angular_velocity: Vec3::ZERO,
-                    inv_mass: 0.0,
-                    elasticity: 0.99,
-                    friction: 0.5,
-                    shape: ground_shape.clone(),
-                });
-                self.colors.push(Vec3::new(0.3, 0.5, 0.3));
-            }
-        }
-        */
-
-        /*
-        // dynamic body
-        bodies.push(Body {
-            position: Vec3::new(0.0, 10.0, 0.0),
-            linear_velocity: Vec3::new(1.0, 0.0, 0.0),
-            inv_mass: 1.0,
-            elasticity: 0.0,
-            friction: 0.5,
-            shape: Shape::Sphere { radius: 1.0 },
-            ..Default::default()
-        });
-        colors.push(Color::rgb(0.8, 0.7, 0.6));
-
-        // ground body
-        bodies.push(Body {
-            position: Vec3::new(0.0, -1000.0, 0.0),
-            inv_mass: 0.0,
-            elasticity: 0.99,
-            friction: 0.5,
-            shape: Shape::Sphere { radius: 1000.0 },
-            ..Default::default()
-        });
-        colors.push(Color::rgb(0.3, 0.5, 0.3));
         */
 
         self.bodies.push(Body {
@@ -321,19 +273,12 @@ impl PhysicsScene {
         contacts.clear();
 
         // narrowphase (perform actual collision detection)
-        let step_num = self.step_num;
         for pair in collision_pairs {
             let (body_a, body_b) = self.get_body_pair_mut(pair.a, pair.b);
 
             // skip body pairs with infinite mass
             if body_a.has_infinite_mass() && body_b.has_infinite_mass() {
                 continue;
-            }
-
-            if step_num == 148 {
-                dbg!(&body_a);
-                dbg!(&body_b);
-                dbg!(delta_seconds);
             }
 
             if let Some(contact) = intersect_dynamic(pair.a, body_a, pair.b, body_b, delta_seconds)

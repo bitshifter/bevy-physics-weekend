@@ -131,12 +131,12 @@ impl Body {
         // update orientation
         let d_angle = self.angular_velocity * delta_seconds;
         let angle = d_angle.length();
-		let rcp_angle = angle.recip();
-		let dq = if rcp_angle.is_finite() {
-			Quat::from_axis_angle(d_angle * rcp_angle, angle)
-		} else {
-			Quat::IDENTITY
-		};
+        let rcp_angle = angle.recip();
+        let dq = if rcp_angle.is_finite() {
+            Quat::from_axis_angle(d_angle * rcp_angle, angle)
+        } else {
+            Quat::IDENTITY
+        };
         self.orientation = (dq * self.orientation).normalize();
 
         // now get the new body position

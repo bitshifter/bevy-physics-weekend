@@ -52,14 +52,14 @@ pub fn make_sphere(radius: f32) -> Shape {
 pub fn make_box(size: Vec3) -> Shape {
     let half = size * 0.5;
     let points = [
-        Vec3::new(-half.x,  half.y, -half.z),
-        Vec3::new( half.x,  half.y, -half.z),
-        Vec3::new(-half.x,  half.y,  half.z),
-        Vec3::new( half.x,  half.y,  half.z),
+        Vec3::new(-half.x, half.y, -half.z),
+        Vec3::new(half.x, half.y, -half.z),
+        Vec3::new(-half.x, half.y, half.z),
+        Vec3::new(half.x, half.y, half.z),
         Vec3::new(-half.x, -half.y, -half.z),
-        Vec3::new( half.x, -half.y, -half.z),
-        Vec3::new(-half.x, -half.y,  half.z),
-        Vec3::new( half.x, -half.y,  half.z),
+        Vec3::new(half.x, -half.y, -half.z),
+        Vec3::new(-half.x, -half.y, half.z),
+        Vec3::new(half.x, -half.y, half.z),
     ];
     Shape::make_box(Arc::new(ShapeBox::new(&points)))
 }
