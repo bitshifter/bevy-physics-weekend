@@ -158,7 +158,7 @@ impl PhysicsScene {
             position: Vec3::new(-10.0, 3.0, 0.0),
             orientation: Quat::IDENTITY,
             linear_velocity: Vec3::new(100.0, 0.0, 0.0),
-            angular_velocity: Vec3::new(0.0, 0.0, 10.0),
+            angular_velocity: Vec3::new(0.0, 0.0, -10.0),
             inv_mass: 1.0,
             elasticity: 0.5,
             friction: 0.5,
