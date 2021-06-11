@@ -476,6 +476,127 @@ fn calculate_inertia_tensor_monte_carlo(pts: &[Vec3], tris: &[Tri], cm: Vec3) ->
     Mat3::from_cols_array_2d(&tensor) * (sample_count as f32).recip()
 }
 
+fn tetrahedron_volume(a: Vec3, b: Vec3, c: Vec3, d: Vec3) -> f32 {
+    let ad = d - a;
+    let bd = d - b;
+    let cd = d - c;
+    let numerator = ad.dot(bd.cross(cd));
+    let volume = numerator / 6.0;
+
+    volume.abs()
+}
+
+fn calculate_center_of_mass_tetrahedron(pts: &[Vec3], tris: &[Tri]) -> Vec3 {
+    let mut cms = Vec::with_capacity(tris.len());
+    let mut volumes = Vec::with_capacity(tris.len());
+    let mut total_volume = 0.0;
+
+    let centerish = pts.iter().sum::<Vec3>() * (pts.len() as f32).recip();
+
+    let pt_a = centerish;
+    for tri in tris {
+        let pt_b = pts[tri.a as usize];
+        let pt_c = pts[tri.b as usize];
+        let pt_d = pts[tri.c as usize];
+
+        let center_of_mass_of_this_simplex = (pt_a + pt_b + pt_c + pt_d) * 0.25;
+        let volume = tetrahedron_volume(pt_a, pt_b, pt_c, pt_d);
+
+        cms.push(center_of_mass_of_this_simplex);
+        volumes.push(volume);
+
+        total_volume += volume;
+    }
+
+    cms.iter()
+        .zip(volumes.iter())
+        .fold(Vec3::ZERO, |acc, (&cm, &volume)| acc + cm * volume)
+        * total_volume.recip()
+}
+
+fn inertia_tensor_tetrahedron(pt_a: Vec3, pt_b: Vec3, pt_c: Vec3, pt_d: Vec3) -> Mat3 {
+    let pts = [pt_a, pt_b, pt_c, pt_d];
+
+    let mat = Mat3::from_cols(
+        Vec3::new(
+            pts[1].x - pts[0].x,
+            pts[2].x - pts[0].x,
+            pts[3].x - pts[0].x,
+        ),
+        Vec3::new(
+            pts[1].y - pts[0].y,
+            pts[2].y - pts[0].y,
+            pts[3].y - pts[0].y,
+        ),
+        Vec3::new(
+            pts[1].z - pts[0].z,
+            pts[2].z - pts[0].z,
+            pts[3].z - pts[0].z,
+        ),
+    );
+
+    let det_j = mat.determinant().abs();
+
+    let density = 1.0;
+    let mu = density;
+
+    let mut xx = 0.0;
+    let mut yy = 0.0;
+    let mut zz = 0.0;
+
+    let mut xy = 0.0;
+    let mut xz = 0.0;
+    let mut yz = 0.0;
+
+    for i in 0..4 {
+        for j in 0..4 {
+            // diagonals
+            xx += pts[i].x * pts[j].x;
+            yy += pts[i].y * pts[j].y;
+            zz += pts[i].z * pts[j].z;
+
+            // off-diagonals
+            xy += pts[i].x * pts[j].y + pts[j].x * pts[i].y;
+            xz += pts[i].x * pts[j].z + pts[j].x * pts[i].z;
+            yz += pts[i].y * pts[j].z + pts[j].y * pts[i].z;
+        }
+    }
+
+    let a = mu * det_j * (yy + zz) / 60.0;
+    let b = mu * det_j * (xx + zz) / 60.0;
+    let c = mu * det_j * (xx + yy) / 60.0;
+
+    let aprime = mu * det_j * yz / 120.0;
+    let bprime = mu * det_j * xz / 120.0;
+    let cprime = mu * det_j * xy / 120.0;
+
+    Mat3::from_cols(
+        Vec3::new(a, -cprime, -bprime),
+        Vec3::new(-cprime, b, -aprime),
+        Vec3::new(-bprime, -aprime, c),
+    )
+}
+
+fn calculate_inertia_tensor_tetrahedron(pts: &[Vec3], tris: &[Tri], cm: Vec3) -> Mat3 {
+    let mut inertia_tensor = Mat3::ZERO;
+    let mut total_volume = 0.0;
+    let pt_a = Vec3::ZERO; // cm - cm;
+    for tri in tris {
+        let pt_b = pts[tri.a as usize] - cm;
+        let pt_c = pts[tri.b as usize] - cm;
+        let pt_d = pts[tri.c as usize] - cm;
+
+        let tensor = inertia_tensor_tetrahedron(pt_a, pt_b, pt_c, pt_d);
+        // TODO
+        inertia_tensor = inertia_tensor + tensor;
+
+        let volume = tetrahedron_volume(pt_a, pt_b, pt_c, pt_d);
+        total_volume += volume;
+    }
+
+    inertia_tensor * total_volume.recip()
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ShapeConvex {
     points: Vec<Vec3>,
