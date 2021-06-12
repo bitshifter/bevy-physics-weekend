@@ -1,18 +1,25 @@
 use glam::Vec3;
+use serde::{Deserialize, Serialize};
+use std::ops::{Add, AddAssign};
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Bounds {
     pub mins: Vec3,
     pub maxs: Vec3,
 }
 
 impl Bounds {
-    // fn new() -> Bounds {
-    //     Bounds {
-    //         mins: Vec3::splat(std::f32::MAX),
-    //         maxs: Vec3::splat(-std::f32::MAX),
-    //     }
-    // }
+    pub fn new() -> Bounds {
+        Bounds {
+            mins: Vec3::splat(std::f32::MAX),
+            maxs: Vec3::splat(-std::f32::MAX),
+        }
+    }
+
+    pub fn from_points(pts: &[Vec3]) -> Self {
+        pts.iter().fold(Bounds::new(), |acc, pt| acc + *pt)
+    }
+
     // fn clear(&mut self) {
     //     *self = Self::new();
     // }
@@ -33,15 +40,18 @@ impl Bounds {
     //     }
     // }
 
-    pub fn expand_by_point(&mut self, rhs: Vec3) {
-        self.mins = Vec3::select(rhs.cmplt(self.mins), rhs, self.mins);
-        self.maxs = Vec3::select(rhs.cmpgt(self.maxs), rhs, self.maxs);
+    pub fn expand_by_point(&mut self, pt: Vec3) {
+        self.add_assign(pt);
     }
 
     // fn expand_by_bounds(&mut self, rhs: &Self) {
     //     self.expand_by_point(rhs.mins);
     //     self.expand_by_point(rhs.maxs);
     // }
+
+    pub fn width(&self) -> Vec3 {
+        self.maxs - self.mins
+    }
 
     // fn width_x(&self) -> f32 {
     //     self.maxs.x - self.mins.x
@@ -54,4 +64,28 @@ impl Bounds {
     // fn width_z(&self) -> f32 {
     //     self.maxs.z - self.mins.z
     // }
+}
+
+impl Default for Bounds {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Add<Vec3> for Bounds {
+    type Output = Self;
+    fn add(self, pt: Vec3) -> Self::Output {
+        Bounds {
+            mins: Vec3::select(pt.cmplt(self.mins), pt, self.mins),
+            maxs: Vec3::select(pt.cmpgt(self.maxs), pt, self.maxs),
+        }
+    }
+}
+
+impl AddAssign<Vec3> for Bounds {
+    fn add_assign(&mut self, pt: Vec3) {
+        self.mins = Vec3::select(pt.cmplt(self.mins), pt, self.mins);
+        self.maxs = Vec3::select(pt.cmpgt(self.maxs), pt, self.maxs);
+    }
 }

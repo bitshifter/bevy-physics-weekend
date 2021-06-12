@@ -1,6 +1,9 @@
 pub mod body;
 pub mod bounds;
 mod broadphase;
+mod gjk;
 mod intersect;
+mod math_ext;
 pub mod scene;
-pub mod shape;
+mod scene_shapes;
+pub mod shapes;

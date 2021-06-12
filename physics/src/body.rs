@@ -1,7 +1,7 @@
-use crate::shape::Shape;
+use crate::shapes::Shape;
 use glam::{Mat3, Quat, Vec3};
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct Body {
     pub position: Vec3,
     pub orientation: Quat,
@@ -41,13 +41,11 @@ impl Body {
     pub fn world_to_local(&self, world_point: Vec3) -> Vec3 {
         let tmp = world_point - self.centre_of_mass_world();
         let inv_orientation = self.orientation.conjugate();
-        let body_space = inv_orientation * tmp;
-        body_space
+        inv_orientation * tmp // body_space
     }
 
     pub fn local_to_world(&self, body_point: Vec3) -> Vec3 {
-        let world_point = self.centre_of_mass_world() + self.orientation * body_point;
-        world_point
+        self.centre_of_mass_world() + self.orientation * body_point // world_point
     }
 
     pub fn inv_intertia_tensor_world(&self) -> Mat3 {
@@ -133,7 +131,12 @@ impl Body {
         // update orientation
         let d_angle = self.angular_velocity * delta_seconds;
         let angle = d_angle.length();
-        let dq = Quat::from_axis_angle(d_angle, angle);
+        let rcp_angle = angle.recip();
+        let dq = if rcp_angle.is_finite() {
+            Quat::from_axis_angle(d_angle * rcp_angle, angle)
+        } else {
+            Quat::IDENTITY
+        };
         self.orientation = (dq * self.orientation).normalize();
 
         // now get the new body position
@@ -141,6 +144,6 @@ impl Body {
     }
 
     pub fn has_infinite_mass(&self) -> bool {
-        return self.inv_mass == 0.0;
+        self.inv_mass == 0.0
     }
 }

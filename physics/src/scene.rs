@@ -1,19 +1,87 @@
-use crate::{body::Body, broadphase::broadphase, intersect::sphere_sphere_dynamic, shape::Shape};
+use crate::{body::Body, broadphase::broadphase, intersect::intersect_dynamic, scene_shapes::*};
 use glam::{Quat, Vec3};
 
+fn add_standard_sandbox(bodies: &mut Vec<Body>, colors: &mut Vec<Vec3>) {
+    let wall_color = Vec3::splat(0.5);
+
+    let box_ground = make_box_ground();
+    let box_wall0 = make_box_wall0();
+    let box_wall1 = make_box_wall1();
+
+    bodies.push(Body {
+        position: Vec3::ZERO,
+        orientation: Quat::IDENTITY,
+        linear_velocity: Vec3::ZERO,
+        angular_velocity: Vec3::ZERO,
+        inv_mass: 0.0,
+        elasticity: 0.5,
+        friction: 0.5,
+        shape: box_ground,
+    });
+    colors.push(Vec3::new(0.3, 0.5, 0.3));
+
+    bodies.push(Body {
+        position: Vec3::new(50.0, 0.0, 0.0),
+        orientation: Quat::IDENTITY,
+        linear_velocity: Vec3::ZERO,
+        angular_velocity: Vec3::ZERO,
+        inv_mass: 0.0,
+        elasticity: 0.5,
+        friction: 0.0,
+        shape: box_wall0.clone(),
+    });
+    colors.push(wall_color);
+
+    bodies.push(Body {
+        position: Vec3::new(-50.0, 0.0, 0.0),
+        orientation: Quat::IDENTITY,
+        linear_velocity: Vec3::ZERO,
+        angular_velocity: Vec3::ZERO,
+        inv_mass: 0.0,
+        elasticity: 0.5,
+        friction: 0.0,
+        shape: box_wall0,
+    });
+    colors.push(wall_color);
+
+    bodies.push(Body {
+        position: Vec3::new(0.0, 0.0, 25.0),
+        orientation: Quat::IDENTITY,
+        linear_velocity: Vec3::ZERO,
+        angular_velocity: Vec3::ZERO,
+        inv_mass: 0.0,
+        elasticity: 0.5,
+        friction: 0.0,
+        shape: box_wall1.clone(),
+    });
+    colors.push(wall_color);
+
+    bodies.push(Body {
+        position: Vec3::new(0.0, 0.0, -25.0),
+        orientation: Quat::IDENTITY,
+        linear_velocity: Vec3::ZERO,
+        angular_velocity: Vec3::ZERO,
+        inv_mass: 0.0,
+        elasticity: 0.5,
+        friction: 0.0,
+        shape: box_wall1,
+    });
+    colors.push(wall_color);
+}
+
 #[derive(Copy, Clone, Debug)]
-struct Contact {
-    world_point_a: Vec3,
-    world_point_b: Vec3,
-    local_point_a: Vec3,
-    local_point_b: Vec3,
-    normal: Vec3,
+pub struct Contact {
+    pub world_point_a: Vec3,
+    pub world_point_b: Vec3,
+    pub local_point_a: Vec3,
+    pub local_point_b: Vec3,
+    pub normal: Vec3,
 
-    separation_dist: f32,
-    time_of_impact: f32,
+    pub separation_dist: f32,
+    pub time_of_impact: f32,
 
-    handle_a: BodyHandle,
-    handle_b: BodyHandle,
+    pub handle_a: BodyHandle,
+    pub handle_b: BodyHandle,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -24,6 +92,7 @@ pub struct PhysicsScene {
     colors: Vec<Vec3>,
     handles: Vec<BodyHandle>,
     contacts: Option<Vec<Contact>>,
+    step_num: u64,
     pub paused: bool,
 }
 
@@ -34,6 +103,7 @@ impl PhysicsScene {
             colors: Vec::new(),
             handles: Vec::new(),
             contacts: None,
+            step_num: 0,
             paused: true,
         };
         scene.reset();
@@ -41,11 +111,13 @@ impl PhysicsScene {
     }
 
     pub fn reset(&mut self) {
-        let num_bodies = 6 * 6 + 3 * 3;
+        self.step_num = 0;
+        // let num_bodies = 6 * 6 + 3 * 3;
         self.bodies.clear();
-        self.bodies.reserve(num_bodies);
         self.colors.clear();
-        self.colors.reserve(num_bodies);
+
+        /*
+        let ball_shape = Shape::make_sphere(0.5);
 
         // dynamic bodies
         for x in 0..6 {
@@ -61,58 +133,40 @@ impl PhysicsScene {
                     inv_mass: 1.0,
                     elasticity: 0.5,
                     friction: 0.5,
-                    shape: Shape::Sphere { radius },
+                    shape: ball_shape.clone(),
                 });
                 self.colors.push(Vec3::new(0.8, 0.7, 0.6));
                 // break; // HACK
             }
             // break; // HACK
         }
-
-        // static floor
-        for x in 0..3 {
-            let radius = 80.0;
-            let xx = ((x as f32) - 1.0) * radius * 0.25;
-            for z in 0..3 {
-                let zz = ((z as f32) - 1.0) * radius * 0.25;
-                self.bodies.push(Body {
-                    position: Vec3::new(xx, -radius, zz),
-                    orientation: Quat::IDENTITY,
-                    linear_velocity: Vec3::ZERO,
-                    angular_velocity: Vec3::ZERO,
-                    inv_mass: 0.0,
-                    elasticity: 0.99,
-                    friction: 0.5,
-                    shape: Shape::Sphere { radius },
-                });
-                self.colors.push(Vec3::new(0.3, 0.5, 0.3));
-            }
-        }
-
-        /*
-        // dynamic body
-        bodies.push(Body {
-            position: Vec3::new(0.0, 10.0, 0.0),
-            linear_velocity: Vec3::new(1.0, 0.0, 0.0),
-            inv_mass: 1.0,
-            elasticity: 0.0,
-            friction: 0.5,
-            shape: Shape::Sphere { radius: 1.0 },
-            ..Default::default()
-        });
-        colors.push(Color::rgb(0.8, 0.7, 0.6));
-
-        // ground body
-        bodies.push(Body {
-            position: Vec3::new(0.0, -1000.0, 0.0),
-            inv_mass: 0.0,
-            elasticity: 0.99,
-            friction: 0.5,
-            shape: Shape::Sphere { radius: 1000.0 },
-            ..Default::default()
-        });
-        colors.push(Color::rgb(0.3, 0.5, 0.3));
         */
+
+        self.bodies.push(Body {
+            position: Vec3::new(10.0, 3.0, 0.0),
+            orientation: Quat::IDENTITY,
+            linear_velocity: Vec3::new(-100.0, 0.0, 0.0),
+            angular_velocity: Vec3::ZERO,
+            inv_mass: 1.0,
+            elasticity: 0.5,
+            friction: 0.5,
+            shape: make_sphere(0.5),
+        });
+        self.colors.push(Vec3::new(0.8, 0.7, 0.6));
+
+        self.bodies.push(Body {
+            position: Vec3::new(-10.0, 3.0, 0.0),
+            orientation: Quat::IDENTITY,
+            linear_velocity: Vec3::new(100.0, 0.0, 0.0),
+            angular_velocity: Vec3::new(0.0, 0.0, -10.0),
+            inv_mass: 1.0,
+            elasticity: 0.5,
+            friction: 0.5,
+            shape: make_diamond(),
+        });
+        self.colors.push(Vec3::new(0.8, 0.7, 0.6));
+
+        add_standard_sandbox(&mut self.bodies, &mut self.colors);
 
         self.handles = self
             .bodies
@@ -125,67 +179,6 @@ impl PhysicsScene {
         self.contacts.replace(Vec::with_capacity(max_contacts));
 
         self.paused = true;
-    }
-
-    fn intersect(
-        &mut self,
-        handle_a: BodyHandle,
-        handle_b: BodyHandle,
-        delta_seconds: f32,
-    ) -> Option<Contact> {
-        let (body_a, body_b) = self.get_body_pair_mut(handle_a, handle_b);
-
-        // skip body pairs with infinite mass
-        if body_a.has_infinite_mass() && body_b.has_infinite_mass() {
-            return None;
-        }
-
-        let shapes = (body_a.shape, body_b.shape);
-        match shapes {
-            (Shape::Sphere { radius: radius_a }, Shape::Sphere { radius: radius_b }) => {
-                if let Some((world_point_a, world_point_b, time_of_impact)) = sphere_sphere_dynamic(
-                    radius_a,
-                    radius_b,
-                    body_a.position,
-                    body_b.position,
-                    body_a.linear_velocity,
-                    body_b.linear_velocity,
-                    delta_seconds,
-                ) {
-                    // step bodies forward to get local space collision points
-                    body_a.update(time_of_impact);
-                    body_b.update(time_of_impact);
-
-                    // convert world space contacts to local space
-                    let local_point_a = body_a.world_to_local(world_point_a);
-                    let local_point_b = body_b.world_to_local(world_point_b);
-
-                    let normal = (body_a.position - body_b.position).normalize();
-
-                    // unwind time step
-                    body_a.update(-time_of_impact);
-                    body_b.update(-time_of_impact);
-
-                    // calculate the separation distance
-                    let ab = body_a.position - body_b.position;
-                    let separation_dist = ab.length() - (radius_a + radius_b);
-
-                    Some(Contact {
-                        world_point_a,
-                        world_point_b,
-                        local_point_a,
-                        local_point_b,
-                        normal,
-                        separation_dist,
-                        time_of_impact,
-                        handle_a,
-                        handle_b,
-                    })
-                } else {
-                    None
-                }
-            }
-        }
     }
 
     fn resolve_contact(&mut self, contact: &Contact) {
@@ -259,6 +252,8 @@ impl PhysicsScene {
     }
 
     pub fn update(&mut self, delta_seconds: f32) {
+        self.step_num += 1;
+
         for body in &mut self.bodies {
             if !body.has_infinite_mass() {
                 // gravity needs to be an impulse
@@ -279,13 +274,23 @@ impl PhysicsScene {
 
         // narrowphase (perform actual collision detection)
         for pair in collision_pairs {
-            if let Some(contact) = self.intersect(pair.a, pair.b, delta_seconds) {
+            let (body_a, body_b) = self.get_body_pair_mut(pair.a, pair.b);
+
+            // skip body pairs with infinite mass
+            if body_a.has_infinite_mass() && body_b.has_infinite_mass() {
+                continue;
+            }
+
+            if let Some(contact) = intersect_dynamic(pair.a, body_a, pair.b, body_b, delta_seconds)
+            {
                 contacts.push(contact)
             }
         }
 
         // sort the times of impact from earliest to latest
         contacts.sort_unstable_by(|a, b| {
+            // TODO: fix lint?
+            #[allow(clippy::float_cmp)]
             if a.time_of_impact < b.time_of_impact {
                 std::cmp::Ordering::Less
             } else if a.time_of_impact == b.time_of_impact {
@@ -310,18 +315,26 @@ impl PhysicsScene {
 
         // update positions for the rest of this frame's time
         let time_remaining = delta_seconds - accumulated_time;
-        for body in &mut self.bodies {
-            body.update(time_remaining);
+        if time_remaining > 0.0 {
+            for body in &mut self.bodies {
+                body.update(time_remaining);
+            }
         }
 
-        // for (index, body) in self.bodies.iter().enumerate() {
-        //     if !body.has_infinite_mass() {
-        //         println!(
-        //             "index: {} position: {} linvel: {} angvel: {}",
-        //             index, body.position, body.linear_velocity, body.angular_velocity
-        //         );
-        //     }
-        // }
+        for (index, body) in self.bodies.iter().enumerate() {
+            if !body.has_infinite_mass() {
+                println!(
+                    "step: {} dt: {} index: {} pos: {} rot: {} lin: {} ang: {}",
+                    self.step_num,
+                    delta_seconds,
+                    index,
+                    body.position,
+                    body.orientation,
+                    body.linear_velocity,
+                    body.angular_velocity
+                );
+            }
+        }
 
         // move contacts ownership back to self to avoid re-allocating next update
         self.contacts.replace(contacts);
@@ -369,5 +382,11 @@ impl PhysicsScene {
 
     pub fn get_color(&self, handle: &BodyHandle) -> Vec3 {
         self.colors[handle.0 as usize]
+    }
+}
+
+impl Default for PhysicsScene {
+    fn default() -> Self {
+        Self::new()
     }
 }
