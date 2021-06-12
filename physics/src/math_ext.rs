@@ -20,8 +20,7 @@ impl Mat4Ext for Mat4 {
                     continue;
                 }
 
-                // TODO: could do with `col_mut()` here
-                minor.as_mut()[xx * 3 + yy] = self.as_ref()[x * 4 + y];
+                minor.col_mut(xx)[yy] = self.col(x)[y];
                 xx += 1;
             }
 
