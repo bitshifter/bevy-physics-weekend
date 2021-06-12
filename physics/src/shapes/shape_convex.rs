@@ -204,7 +204,6 @@ fn add_point(hull_points: &mut Vec<Vec3>, hull_tris: &mut Vec<Tri>, pt: Vec3) {
 
     // Find all the triangles that face this point
     let mut facing_tris = Vec::new();
-    // TODO: hopefully this works the same as the C loop
     for i in (0..hull_tris.len()).rev() {
         let tri = hull_tris[i];
         let a = hull_points[tri.a as usize];
@@ -372,7 +371,7 @@ fn calculate_inertia_tensor(pts: &[Vec3], tris: &[Tri], cm: Vec3) -> Mat3 {
 
     let bounds = Bounds::from_points(pts);
 
-    let mut tensor = [Vec3::ZERO; 3];
+    let mut tensor = Mat3::ZERO;
 
     let dv = bounds.width() / NUM_SAMPLES as f32;
 
@@ -392,24 +391,24 @@ fn calculate_inertia_tensor(pts: &[Vec3], tris: &[Tri], cm: Vec3) -> Mat3 {
                 // Get the point relative to the center of mass
                 pt -= cm;
 
-                tensor[0][0] += pt.y * pt.y + pt.z * pt.z;
-                tensor[1][1] += pt.z * pt.z + pt.x * pt.x;
-                tensor[2][2] += pt.x * pt.x + pt.y * pt.y;
+                tensor.col_mut(0)[0] += pt.y * pt.y + pt.z * pt.z;
+                tensor.col_mut(1)[1] += pt.z * pt.z + pt.x * pt.x;
+                tensor.col_mut(2)[2] += pt.x * pt.x + pt.y * pt.y;
 
-                tensor[0][1] += -pt.x * pt.y;
-                tensor[0][2] += -pt.x * pt.z;
-                tensor[1][2] += -pt.y * pt.z;
+                tensor.col_mut(0)[1] += -pt.x * pt.y;
+                tensor.col_mut(0)[2] += -pt.x * pt.z;
+                tensor.col_mut(1)[2] += -pt.y * pt.z;
 
-                tensor[1][0] += -pt.x * pt.y;
-                tensor[2][0] += -pt.x * pt.z;
-                tensor[2][1] += -pt.y * pt.z;
+                tensor.col_mut(1)[0] += -pt.x * pt.y;
+                tensor.col_mut(2)[0] += -pt.x * pt.z;
+                tensor.col_mut(2)[1] += -pt.y * pt.z;
 
                 sample_count += 1;
             }
         }
     }
 
-    Mat3::from_cols(tensor[0], tensor[1], tensor[2]) * (sample_count as f32).recip()
+    tensor * (sample_count as f32).recip()
 }
 
 fn calculate_center_of_mass_monte_carlo(pts: &[Vec3], tris: &[Tri]) -> Vec3 {
@@ -445,7 +444,7 @@ fn calculate_inertia_tensor_monte_carlo(pts: &[Vec3], tris: &[Tri], cm: Vec3) ->
 
     let bounds = Bounds::from_points(pts);
 
-    let mut tensor = [[0.0; 3]; 3];
+    let mut tensor = Mat3::ZERO;
     let mut sample_count = 0;
     for _ in 0..NUM_SAMPLES {
         let rand3 = Vec3::new(rng.gen(), rng.gen(), rng.gen());
@@ -458,22 +457,22 @@ fn calculate_inertia_tensor_monte_carlo(pts: &[Vec3], tris: &[Tri], cm: Vec3) ->
         // get the point relative to the center of mass
         pt -= cm;
 
-        tensor[0][0] += pt.y * pt.y + pt.z * pt.z;
-        tensor[1][1] += pt.z * pt.z + pt.x * pt.x;
-        tensor[2][2] += pt.x * pt.x + pt.y * pt.y;
+        tensor.col_mut(0)[0] += pt.y * pt.y + pt.z * pt.z;
+        tensor.col_mut(1)[1] += pt.z * pt.z + pt.x * pt.x;
+        tensor.col_mut(2)[2] += pt.x * pt.x + pt.y * pt.y;
 
-        tensor[0][1] += -1.0 * pt.x * pt.y;
-        tensor[0][2] += -1.0 * pt.x * pt.z;
-        tensor[1][2] += -1.0 * pt.y * pt.z;
+        tensor.col_mut(0)[1] += -1.0 * pt.x * pt.y;
+        tensor.col_mut(0)[2] += -1.0 * pt.x * pt.z;
+        tensor.col_mut(1)[2] += -1.0 * pt.y * pt.z;
 
-        tensor[1][0] += -1.0 * pt.x * pt.y;
-        tensor[2][0] += -1.0 * pt.x * pt.z;
-        tensor[2][1] += -1.0 * pt.y * pt.z;
+        tensor.col_mut(1)[0] += -1.0 * pt.x * pt.y;
+        tensor.col_mut(2)[0] += -1.0 * pt.x * pt.z;
+        tensor.col_mut(2)[1] += -1.0 * pt.y * pt.z;
 
         sample_count += 1;
     }
 
-    Mat3::from_cols_array_2d(&tensor) * (sample_count as f32).recip()
+    tensor * (sample_count as f32).recip()
 }
 
 fn tetrahedron_volume(a: Vec3, b: Vec3, c: Vec3, d: Vec3) -> f32 {
@@ -587,8 +586,7 @@ fn calculate_inertia_tensor_tetrahedron(pts: &[Vec3], tris: &[Tri], cm: Vec3) ->
         let pt_d = pts[tri.c as usize] - cm;
 
         let tensor = inertia_tensor_tetrahedron(pt_a, pt_b, pt_c, pt_d);
-        // TODO
-        inertia_tensor = inertia_tensor + tensor;
+        inertia_tensor += tensor;
 
         let volume = tetrahedron_volume(pt_a, pt_b, pt_c, pt_d);
         total_volume += volume;

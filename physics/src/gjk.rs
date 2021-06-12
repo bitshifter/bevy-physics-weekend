@@ -506,15 +506,14 @@ fn signed_distance_to_triangle(tri: &Tri, pt: Vec3, points: &[Point]) -> f32 {
     normal.dot(a2pt)
 }
 
-// TODO: could return &Tri?
-fn closest_triangle(triangles: &[Tri], points: &[Point]) -> Option<usize> {
+fn closest_triangle(triangles: &[Tri], points: &[Point]) -> Option<Tri> {
     let mut min_dist_sq = f32::MAX;
     let mut idx = None;
-    for (i, tri) in triangles.iter().enumerate() {
+    for tri in triangles {
         let dist = signed_distance_to_triangle(tri, Vec3::ZERO, points);
         let dist_sq = dist * dist;
         if dist_sq < min_dist_sq {
-            idx = Some(i);
+            idx = Some(*tri);
             min_dist_sq = dist_sq;
         }
     }
@@ -652,8 +651,8 @@ fn epa_expand(
 
     // Expand the simplex to find the closest face of the CSO to the origin
     loop {
-        let idx = closest_triangle(&triangles, &points).unwrap();
-        let normal = normal_direction(&triangles[idx], &points);
+        let tri = closest_triangle(&triangles, &points).unwrap();
+        let normal = normal_direction(&tri, &points);
 
         let new_pt = support(body_a, body_b, normal, bias);
 
@@ -662,7 +661,7 @@ fn epa_expand(
             break;
         }
 
-        let dist = signed_distance_to_triangle(&triangles[idx], new_pt.xyz, &points);
+        let dist = signed_distance_to_triangle(&tri, new_pt.xyz, &points);
         if dist <= 0.0 {
             // can't append
             break;
@@ -703,8 +702,7 @@ fn epa_expand(
     }
 
     // Get the projection of the origin on the closest triangle
-    let idx = closest_triangle(&triangles, &points).unwrap();
-    let tri = triangles[idx];
+    let tri = closest_triangle(&triangles, &points).unwrap();
     let pt_a = &points[tri.a as usize];
     let pt_b = &points[tri.b as usize];
     let pt_c = &points[tri.c as usize];
