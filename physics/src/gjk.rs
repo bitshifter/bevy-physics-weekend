@@ -3,7 +3,7 @@
 
 use crate::{
     body::Body,
-    math_ext::Mat4Ext,
+    math::glam_ext::Mat4Ext,
     shapes::{Edge, Tri},
 };
 use glam::{Mat4, Vec2, Vec3, Vec4};

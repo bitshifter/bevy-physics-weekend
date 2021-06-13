@@ -3,7 +3,7 @@ pub mod bounds;
 mod broadphase;
 mod gjk;
 mod intersect;
-mod math_ext;
+mod math;
 pub mod scene;
 mod scene_shapes;
 pub mod shapes;
