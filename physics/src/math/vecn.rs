@@ -1,3 +1,4 @@
+/*
 use core::{iter, ops::{Index, IndexMut}};
 
 #[derive(Clone, Debug)]
@@ -34,4 +35,4 @@ impl IndexMut<usize> for VecN {
         &mut self.0[index]
     }
 }
-
+*/

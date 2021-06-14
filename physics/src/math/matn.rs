@@ -1,3 +1,4 @@
+/*
 use core::{iter, ops::{Mul, MulAssign}};
 
 #[derive(Clone, Debug)]
@@ -63,3 +64,5 @@ impl Mul<f32> for &MatN {
         }
     }
 }
+pub fn lcp_gauss_seidel(a: &MatN
+*/
