@@ -1,6 +1,7 @@
 pub mod body;
 pub mod bounds;
 mod broadphase;
+mod constraints;
 mod gjk;
 mod intersect;
 mod math;

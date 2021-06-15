@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 pub mod glam_ext;
 mod matn;
 mod vecn;
@@ -5,10 +6,7 @@ mod vecn;
 // pub use matn::MatN;
 // pub use vecn::VecN;
 
-use core::{
-    iter,
-    ops::{Index, IndexMut, Mul},
-};
+use core::ops::{Deref, DerefMut, Index};
 
 fn dot<const N: usize>(a: &[f32; N], b: &[f32; N]) -> f32 {
     a.iter()
@@ -62,6 +60,19 @@ impl<const N: usize> VecN<N> {
     }
 }
 
+impl<const N: usize> Deref for VecN<N> {
+    type Target = [f32; N];
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<const N: usize> DerefMut for VecN<N> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 // impl<const N: usize> IntoIterator for VecN<N> {
 //     type Item = f32;
 //     type IntoIter = std::vec::IntoIter<Self::Item>;
@@ -71,20 +82,20 @@ impl<const N: usize> VecN<N> {
 //     }
 // }
 
-impl<const N: usize> Index<usize> for VecN<N> {
-    type Output = f32;
-    #[inline]
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
-    }
-}
+// impl<const N: usize> Index<usize> for VecN<N> {
+//     type Output = f32;
+//     #[inline]
+//     fn index(&self, index: usize) -> &Self::Output {
+//         &self.0[index]
+//     }
+// }
 
-impl<const N: usize> IndexMut<usize> for VecN<N> {
-    #[inline]
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index]
-    }
-}
+// impl<const N: usize> IndexMut<usize> for VecN<N> {
+//     #[inline]
+//     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+//         &mut self.0[index]
+//     }
+// }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct MatN<const N: usize> {

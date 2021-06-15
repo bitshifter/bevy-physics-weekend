@@ -372,6 +372,10 @@ impl PhysicsScene {
         self.get_body_pair_mut_from_indices(index_a.0 as usize, index_b.0 as usize)
     }
 
+    pub fn get_body_mut(&mut self, handle: &BodyHandle) -> &mut Body {
+        &mut self.bodies[handle.0 as usize]
+    }
+
     pub fn get_body(&self, handle: &BodyHandle) -> &Body {
         &self.bodies[handle.0 as usize]
     }
