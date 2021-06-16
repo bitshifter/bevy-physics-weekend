@@ -7,10 +7,13 @@ This has been a learning excercise for me to get a better understanding of
 implementing a physics engine, using Bevy and also making use of my math library
 [glam].
 
-So far only the first book has been implemented.
+So far the first and second books have been implemented.
 
-I'm using a fork of Bevy 0.4.0 that is using the latest version of glam from
+I'm using a fork of Bevy 0.5.0 that is using the latest version of glam from
 github.
+
+One difference between this implemntation and the book is `glam` uses column
+vectors and column major matrices whereas the book uses row-major matrices.
 
 ## Simulation controls
 
