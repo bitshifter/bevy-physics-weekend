@@ -1,4 +1,7 @@
-use crate::{body::Body, broadphase::broadphase, intersect::intersect_dynamic, scene_shapes::*};
+use crate::{
+    body::Body, broadphase::broadphase, constraints::Constraint, intersect::intersect_dynamic,
+    scene_shapes::*,
+};
 use glam::{Quat, Vec3};
 
 fn add_standard_sandbox(bodies: &mut Vec<Body>, colors: &mut Vec<Vec3>) {
@@ -92,6 +95,7 @@ pub struct PhysicsScene {
     colors: Vec<Vec3>,
     handles: Vec<BodyHandle>,
     contacts: Option<Vec<Contact>>,
+    constraints: Vec<Constraint>,
     step_num: u64,
     pub paused: bool,
 }
@@ -100,6 +104,7 @@ impl PhysicsScene {
     pub fn new() -> Self {
         let mut scene = PhysicsScene {
             bodies: Vec::new(),
+            constraints: Vec::new(),
             colors: Vec::new(),
             handles: Vec::new(),
             contacts: None,
@@ -114,6 +119,7 @@ impl PhysicsScene {
         self.step_num = 0;
         // let num_bodies = 6 * 6 + 3 * 3;
         self.bodies.clear();
+        self.constraints.clear();
         self.colors.clear();
 
         /*
@@ -300,6 +306,22 @@ impl PhysicsScene {
             }
         });
 
+        // solve constraints
+        for _constraint in &mut self.constraints {
+            // TODO: make bodies self contained
+            // constraint.pre_solve(&self, delta_seconds);
+        }
+
+        for _constraint in &mut self.constraints {
+            // TODO
+            // constraint.solve(&mut self);
+        }
+
+        for constraint in &mut self.constraints {
+            constraint.post_solve();
+        }
+
+        // apply ballistic impulses
         let mut accumulated_time = 0.0;
         for contact in &contacts {
             let contact_time = contact.time_of_impact - accumulated_time;
@@ -372,11 +394,11 @@ impl PhysicsScene {
         self.get_body_pair_mut_from_indices(index_a.0 as usize, index_b.0 as usize)
     }
 
-    pub fn get_body_mut(&mut self, handle: &BodyHandle) -> &mut Body {
+    pub fn get_body_mut(&mut self, handle: BodyHandle) -> &mut Body {
         &mut self.bodies[handle.0 as usize]
     }
 
-    pub fn get_body(&self, handle: &BodyHandle) -> &Body {
+    pub fn get_body(&self, handle: BodyHandle) -> &Body {
         &self.bodies[handle.0 as usize]
     }
 
@@ -384,7 +406,7 @@ impl PhysicsScene {
         &self.handles
     }
 
-    pub fn get_color(&self, handle: &BodyHandle) -> Vec3 {
+    pub fn get_color(&self, handle: BodyHandle) -> Vec3 {
         self.colors[handle.0 as usize]
     }
 }

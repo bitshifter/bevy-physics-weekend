@@ -31,36 +31,48 @@ pub struct Constraint {
     config: ConstraintConfig,
 }
 
+impl Constraint {
+    pub fn pre_solve(&mut self, scene: &PhysicsScene, dt_sec: f32) {
+        self.constraint.pre_solve(&self.config, scene, dt_sec);
+    }
+    pub fn solve(&mut self, scene: &mut PhysicsScene) {
+        self.constraint.solve(&self.config, scene);
+    }
+    pub fn post_solve(&mut self) {
+        self.constraint.post_solve();
+    }
+}
+
 impl ConstraintConfig {
     fn get_inverse_mass_matrix(&self, scene: &PhysicsScene) -> MatMN<12, 12> {
         let mut inv_mass_matrix = MatMN::zero();
 
         {
-            let body_a = scene.get_body(&self.body_a);
+            let body_a = scene.get_body(self.body_a);
 
-            inv_mass_matrix.cols[0][0] = body_a.inv_mass;
-            inv_mass_matrix.cols[1][1] = body_a.inv_mass;
-            inv_mass_matrix.cols[2][2] = body_a.inv_mass;
+            inv_mass_matrix.rows[0][0] = body_a.inv_mass;
+            inv_mass_matrix.rows[1][1] = body_a.inv_mass;
+            inv_mass_matrix.rows[2][2] = body_a.inv_mass;
 
             let inv_intertia_a = body_a.inv_intertia_tensor_world();
             for i in 0..3 {
-                inv_mass_matrix.cols[3 + i][3 + 0] = inv_intertia_a.col(i)[0];
-                inv_mass_matrix.cols[3 + i][3 + 1] = inv_intertia_a.col(i)[1];
-                inv_mass_matrix.cols[3 + i][3 + 2] = inv_intertia_a.col(i)[2];
+                inv_mass_matrix.rows[3 + i][3 + 0] = inv_intertia_a.col(i)[0];
+                inv_mass_matrix.rows[3 + i][3 + 1] = inv_intertia_a.col(i)[1];
+                inv_mass_matrix.rows[3 + i][3 + 2] = inv_intertia_a.col(i)[2];
             }
         }
 
         {
-            let body_b = scene.get_body(&self.body_b);
-            inv_mass_matrix.cols[6][6] = body_b.inv_mass;
-            inv_mass_matrix.cols[7][7] = body_b.inv_mass;
-            inv_mass_matrix.cols[8][8] = body_b.inv_mass;
+            let body_b = scene.get_body(self.body_b);
+            inv_mass_matrix.rows[6][6] = body_b.inv_mass;
+            inv_mass_matrix.rows[7][7] = body_b.inv_mass;
+            inv_mass_matrix.rows[8][8] = body_b.inv_mass;
 
             let inv_intertia_b = body_b.inv_intertia_tensor_world();
             for i in 0..3 {
-                inv_mass_matrix.cols[9 + i][9 + 0] = inv_intertia_b.col(i)[0];
-                inv_mass_matrix.cols[9 + i][9 + 1] = inv_intertia_b.col(i)[1];
-                inv_mass_matrix.cols[9 + i][9 + 2] = inv_intertia_b.col(i)[2];
+                inv_mass_matrix.rows[9 + i][9 + 0] = inv_intertia_b.col(i)[0];
+                inv_mass_matrix.rows[9 + i][9 + 1] = inv_intertia_b.col(i)[1];
+                inv_mass_matrix.rows[9 + i][9 + 2] = inv_intertia_b.col(i)[2];
             }
         }
 
@@ -71,7 +83,7 @@ impl ConstraintConfig {
         let mut q_dt = VecN::zero();
 
         {
-            let body_a = scene.get_body(&self.body_a);
+            let body_a = scene.get_body(self.body_a);
 
             q_dt[0] = body_a.linear_velocity.x;
             q_dt[1] = body_a.linear_velocity.y;
@@ -83,7 +95,7 @@ impl ConstraintConfig {
         }
 
         {
-            let body_b = scene.get_body(&self.body_b);
+            let body_b = scene.get_body(self.body_b);
 
             q_dt[6] = body_b.linear_velocity.x;
             q_dt[7] = body_b.linear_velocity.y;
@@ -101,7 +113,7 @@ impl ConstraintConfig {
         {
             let force_internal_a = Vec3::from_slice(&impulses[0..]);
             let torque_internal_a = Vec3::from_slice(&impulses[3..]);
-            let body_a = scene.get_body_mut(&self.body_a);
+            let body_a = scene.get_body_mut(self.body_a);
             body_a.apply_impulse_linear(force_internal_a);
             body_a.apply_impulse_angular(torque_internal_a);
         }
@@ -109,7 +121,7 @@ impl ConstraintConfig {
         {
             let force_internal_b = Vec3::from_slice(&impulses[6..]);
             let torque_internal_b = Vec3::from_slice(&impulses[9..]);
-            let body_b = scene.get_body_mut(&self.body_b);
+            let body_b = scene.get_body_mut(self.body_b);
             body_b.apply_impulse_linear(force_internal_b);
             body_b.apply_impulse_angular(torque_internal_b);
         }
