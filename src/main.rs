@@ -68,7 +68,7 @@ fn copy_transforms_system(
     physics_scene: Res<PhysicsScene>,
     mut query: Query<(&BodyHandle, &mut Transform)>,
 ) {
-    for (body_handle, mut transform) in query.iter_mut() {
+    for (&body_handle, mut transform) in query.iter_mut() {
         let body = physics_scene.get_body(body_handle);
         transform.translation = body.position;
         transform.rotation = body.orientation;
@@ -86,7 +86,7 @@ fn setup_rendering(
         ..Default::default()
     });
 
-    for body_handle in physics_scene.handles().iter() {
+    for &body_handle in physics_scene.handles().iter() {
         let body = physics_scene.get_body(body_handle);
         let color = physics_scene.get_color(body_handle);
         let color = Color::rgb(color.x, color.y, color.z);
@@ -97,7 +97,7 @@ fn setup_rendering(
                 material: materials.add(color.into()),
                 ..Default::default()
             })
-            .insert(*body_handle);
+            .insert(body_handle);
     }
 }
 

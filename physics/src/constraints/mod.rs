@@ -7,7 +7,7 @@ use crate::{
 };
 use glam::Vec3;
 
-pub trait ConstraintTrait {
+pub trait ConstraintTrait : Send + Sync {
     fn pre_solve(&mut self, config: &ConstraintConfig, scene: &PhysicsScene, dt_sec: f32);
     fn solve(&mut self, config: &ConstraintConfig, scene: &mut PhysicsScene);
     fn post_solve(&mut self) {}
