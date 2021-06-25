@@ -8,10 +8,18 @@ pub struct ConstraintDistance {
     jacobian: MatMN<1, 12>,
 }
 
+impl ConstraintDistance {
+    pub fn new() -> Self {
+        ConstraintDistance {
+            jacobian: MatMN::zero(),
+        }
+    }
+}
+
 impl ConstraintTrait for ConstraintDistance {
     fn pre_solve(&mut self, config: &ConstraintConfig, bodies: &BodyArena, _dt_sec: f32) {
-        let body_a = bodies.get_body(config.body_a);
-        let body_b = bodies.get_body(config.body_b);
+        let body_a = bodies.get_body(config.handle_a);
+        let body_b = bodies.get_body(config.handle_b);
 
         let world_anchor_a = body_a.local_to_world(config.anchor_a);
         let world_anchor_b = body_b.local_to_world(config.anchor_b);

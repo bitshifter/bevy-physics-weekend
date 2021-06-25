@@ -64,6 +64,10 @@ pub fn make_box(size: Vec3) -> Shape {
     Shape::make_box(Arc::new(ShapeBox::new(&points)))
 }
 
+pub fn make_box_small() -> Shape {
+    make_box(Vec3::splat(0.5))
+}
+
 pub fn make_box_ground() -> Shape {
     Shape::make_box(Arc::new(ShapeBox::new(&BOX_GROUND)))
 }

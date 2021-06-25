@@ -1,11 +1,53 @@
-#![allow(dead_code)]
 mod constraint_distance;
 
 use crate::{
     math::{MatMN, VecN},
     scene::{BodyArena, BodyHandle},
 };
+use constraint_distance::ConstraintDistance;
 use glam::Vec3;
+
+pub struct ConstraintArena {
+    constraints: Vec<Constraint>,
+}
+
+impl ConstraintArena {
+    pub fn new() -> Self {
+        ConstraintArena {
+            constraints: Vec::new(),
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.constraints.clear();
+    }
+
+    pub fn add_distance_constraint(&mut self, config: ConstraintConfig) {
+        let constraint = Constraint {
+            constraint: Box::new(ConstraintDistance::new()),
+            config,
+        };
+        self.constraints.push(constraint);
+    }
+
+    pub fn pre_solve(&mut self, bodies: &BodyArena, dt_sec: f32) {
+        for constraint in &mut self.constraints {
+            constraint.pre_solve(bodies, dt_sec);
+        }
+    }
+
+    pub fn solve(&mut self, bodies: &mut BodyArena) {
+        for constraint in &mut self.constraints {
+            constraint.solve(bodies);
+        }
+    }
+
+    pub fn post_solve(&mut self) {
+        for constraint in &mut self.constraints {
+            constraint.post_solve();
+        }
+    }
+}
 
 pub trait ConstraintTrait: Send + Sync {
     fn pre_solve(&mut self, config: &ConstraintConfig, bodies: &BodyArena, dt_sec: f32);
@@ -13,17 +55,16 @@ pub trait ConstraintTrait: Send + Sync {
     fn post_solve(&mut self) {}
 }
 
+#[derive(Copy, Clone, Debug)]
 pub struct ConstraintConfig {
-    constraint: Box<dyn ConstraintTrait>,
+    pub handle_a: BodyHandle,
+    pub handle_b: BodyHandle,
 
-    body_a: BodyHandle,
-    body_b: BodyHandle,
+    pub anchor_a: Vec3, // the anchor location in body_a's space
+    pub axis_a: Vec3,   // the axis direction in body_a's space
 
-    anchor_a: Vec3, // the anchor location in body_a's space
-    axis_a: Vec3,   // the axis direction in body_a's space
-
-    anchor_b: Vec3, // the anchor location in body_b's space
-    axis_b: Vec3,   // the axis direction in body_b's space
+    pub anchor_b: Vec3, // the anchor location in body_b's space
+    pub axis_b: Vec3,   // the axis direction in body_b's space
 }
 
 pub struct Constraint {
@@ -48,7 +89,7 @@ impl ConstraintConfig {
         let mut inv_mass_matrix = MatMN::zero();
 
         {
-            let body_a = bodies.get_body(self.body_a);
+            let body_a = bodies.get_body(self.handle_a);
 
             inv_mass_matrix.rows[0][0] = body_a.inv_mass;
             inv_mass_matrix.rows[1][1] = body_a.inv_mass;
@@ -63,7 +104,7 @@ impl ConstraintConfig {
         }
 
         {
-            let body_b = bodies.get_body(self.body_b);
+            let body_b = bodies.get_body(self.handle_b);
             inv_mass_matrix.rows[6][6] = body_b.inv_mass;
             inv_mass_matrix.rows[7][7] = body_b.inv_mass;
             inv_mass_matrix.rows[8][8] = body_b.inv_mass;
@@ -83,7 +124,7 @@ impl ConstraintConfig {
         let mut q_dt = VecN::zero();
 
         {
-            let body_a = bodies.get_body(self.body_a);
+            let body_a = bodies.get_body(self.handle_a);
 
             q_dt[0] = body_a.linear_velocity.x;
             q_dt[1] = body_a.linear_velocity.y;
@@ -95,7 +136,7 @@ impl ConstraintConfig {
         }
 
         {
-            let body_b = bodies.get_body(self.body_b);
+            let body_b = bodies.get_body(self.handle_b);
 
             q_dt[6] = body_b.linear_velocity.x;
             q_dt[7] = body_b.linear_velocity.y;
@@ -113,7 +154,7 @@ impl ConstraintConfig {
         {
             let force_internal_a = Vec3::from_slice(&impulses[0..]);
             let torque_internal_a = Vec3::from_slice(&impulses[3..]);
-            let body_a = bodies.get_body_mut(self.body_a);
+            let body_a = bodies.get_body_mut(self.handle_a);
             body_a.apply_impulse_linear(force_internal_a);
             body_a.apply_impulse_angular(torque_internal_a);
         }
@@ -121,7 +162,7 @@ impl ConstraintConfig {
         {
             let force_internal_b = Vec3::from_slice(&impulses[6..]);
             let torque_internal_b = Vec3::from_slice(&impulses[9..]);
-            let body_b = bodies.get_body_mut(self.body_b);
+            let body_b = bodies.get_body_mut(self.handle_b);
             body_b.apply_impulse_linear(force_internal_b);
             body_b.apply_impulse_angular(torque_internal_b);
         }

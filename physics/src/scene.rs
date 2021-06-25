@@ -1,5 +1,8 @@
 use crate::{
-    body::Body, broadphase::broadphase, constraints::Constraint, intersect::intersect_dynamic,
+    body::Body,
+    broadphase::broadphase,
+    constraints::{ConstraintArena, ConstraintConfig},
+    intersect::intersect_dynamic,
     scene_shapes::*,
 };
 use glam::{Quat, Vec3};
@@ -222,8 +225,8 @@ impl BodyArena {
 
 pub struct PhysicsScene {
     bodies: BodyArena,
+    constraints: ConstraintArena,
     contacts: Option<Vec<Contact>>,
-    constraints: Vec<Constraint>,
     step_num: u64,
     pub paused: bool,
 }
@@ -232,7 +235,7 @@ impl PhysicsScene {
     pub fn new() -> Self {
         let mut scene = PhysicsScene {
             bodies: BodyArena::new(),
-            constraints: Vec::new(),
+            constraints: ConstraintArena::new(),
             contacts: None,
             step_num: 0,
             paused: true,
@@ -273,26 +276,42 @@ impl PhysicsScene {
         }
         */
 
-        self.bodies.add(Body {
-            position: Vec3::new(10.0, 3.0, 0.0),
+        let handle_a = self.bodies.add(Body {
+            position: Vec3::new(0.0, 5.0, 0.0),
             orientation: Quat::IDENTITY,
-            linear_velocity: Vec3::new(-100.0, 0.0, 0.0),
+            linear_velocity: Vec3::ZERO,
             angular_velocity: Vec3::ZERO,
-            inv_mass: 1.0,
-            elasticity: 0.5,
+            inv_mass: 0.0,
+            elasticity: 1.0,
             friction: 0.5,
-            shape: make_sphere(0.5),
+            shape: make_box_small(),
         });
 
-        self.bodies.add(Body {
-            position: Vec3::new(-10.0, 3.0, 0.0),
+        let handle_b = self.bodies.add(Body {
+            position: Vec3::new(1.0, 5.0, 0.0),
             orientation: Quat::IDENTITY,
-            linear_velocity: Vec3::new(100.0, 0.0, 0.0),
-            angular_velocity: Vec3::new(0.0, 0.0, -10.0),
+            linear_velocity: Vec3::ZERO,
+            angular_velocity: Vec3::ZERO,
             inv_mass: 1.0,
-            elasticity: 0.5,
+            elasticity: 1.0,
             friction: 0.5,
-            shape: make_diamond(),
+            shape: make_box_small(),
+        });
+
+        let body_a = self.bodies.get_body(handle_a);
+        let body_b = self.bodies.get_body(handle_b);
+        let joint_world_space_anchor = body_a.position;
+
+        let anchor_a = body_a.world_to_local(joint_world_space_anchor);
+        let anchor_b = body_b.world_to_local(joint_world_space_anchor);
+
+        self.constraints.add_distance_constraint(ConstraintConfig {
+            handle_a,
+            handle_b,
+            anchor_a,
+            axis_a: Vec3::ZERO,
+            anchor_b,
+            axis_b: Vec3::ZERO,
         });
 
         add_standard_sandbox(&mut self.bodies);
@@ -425,17 +444,11 @@ impl PhysicsScene {
         });
 
         // solve constraints
-        for constraint in &mut self.constraints {
-            constraint.pre_solve(&self.bodies, delta_seconds);
-        }
+        self.constraints.pre_solve(&self.bodies, delta_seconds);
 
-        for constraint in &mut self.constraints {
-            constraint.solve(&mut self.bodies);
-        }
+        self.constraints.solve(&mut self.bodies);
 
-        for constraint in &mut self.constraints {
-            constraint.post_solve();
-        }
+        self.constraints.post_solve();
 
         // apply ballistic impulses
         let mut accumulated_time = 0.0;
