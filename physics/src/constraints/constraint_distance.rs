@@ -1,7 +1,7 @@
 use super::{ConstraintConfig, ConstraintTrait};
 use crate::{
     math::{lcp_gauss_seidel, MatMN, MatN},
-    scene::PhysicsScene,
+    scene::BodyArena,
 };
 
 pub struct ConstraintDistance {
@@ -9,9 +9,9 @@ pub struct ConstraintDistance {
 }
 
 impl ConstraintTrait for ConstraintDistance {
-    fn pre_solve(&mut self, config: &ConstraintConfig, scene: &PhysicsScene, _dt_sec: f32) {
-        let body_a = scene.get_body(config.body_a);
-        let body_b = scene.get_body(config.body_b);
+    fn pre_solve(&mut self, config: &ConstraintConfig, bodies: &BodyArena, _dt_sec: f32) {
+        let body_a = bodies.get_body(config.body_a);
+        let body_b = bodies.get_body(config.body_b);
 
         let world_anchor_a = body_a.local_to_world(config.anchor_a);
         let world_anchor_b = body_b.local_to_world(config.anchor_b);
@@ -50,12 +50,12 @@ impl ConstraintTrait for ConstraintDistance {
         }
     }
 
-    fn solve(&mut self, config: &ConstraintConfig, scene: &mut PhysicsScene) {
+    fn solve(&mut self, config: &ConstraintConfig, bodies: &mut BodyArena) {
         let jacobian_transpose = self.jacobian.transpose();
 
         // build the system of equations
-        let q_dt = config.get_velocities(scene);
-        let inv_mass_matrix = config.get_inverse_mass_matrix(scene);
+        let q_dt = config.get_velocities(bodies);
+        let inv_mass_matrix = config.get_inverse_mass_matrix(bodies);
         let j_w_jt = self.jacobian * inv_mass_matrix * jacobian_transpose;
         let rhs = self.jacobian * q_dt * -1.0;
 
@@ -64,6 +64,6 @@ impl ConstraintTrait for ConstraintDistance {
 
         // apply the impulses
         let impulses = jacobian_transpose * lambda_n;
-        config.apply_impulses(scene, &impulses);
+        config.apply_impulses(bodies, &impulses);
     }
 }

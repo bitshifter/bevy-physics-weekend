@@ -1,5 +1,4 @@
-use crate::body::Body;
-use crate::scene::BodyHandle;
+use crate::scene::{BodyArena, BodyHandle};
 use glam::Vec3;
 
 #[derive(Copy, Clone, Debug)]
@@ -33,7 +32,7 @@ fn compare_sat(a: &PsuedoBody, b: &PsuedoBody) -> std::cmp::Ordering {
     }
 }
 
-fn sort_bodies_bounds(bodies: &[Body], dt_sec: f32) -> Vec<PsuedoBody> {
+fn sort_bodies_bounds(bodies: &BodyArena, dt_sec: f32) -> Vec<PsuedoBody> {
     // TODO: allocation on sort
     let mut sorted_bodies = Vec::with_capacity(bodies.len() * 2);
 
@@ -98,11 +97,11 @@ fn build_pairs(sorted_bodies: &[PsuedoBody]) -> Vec<CollisionPair> {
     collision_pairs
 }
 
-fn sweep_and_prune_1d(bodies: &[Body], dt_sec: f32) -> Vec<CollisionPair> {
+fn sweep_and_prune_1d(bodies: &BodyArena, dt_sec: f32) -> Vec<CollisionPair> {
     let sorted_bodies = sort_bodies_bounds(bodies, dt_sec);
     build_pairs(&sorted_bodies)
 }
 
-pub fn broadphase(bodies: &[Body], dt_sec: f32) -> Vec<CollisionPair> {
+pub fn broadphase(bodies: &BodyArena, dt_sec: f32) -> Vec<CollisionPair> {
     sweep_and_prune_1d(bodies, dt_sec)
 }

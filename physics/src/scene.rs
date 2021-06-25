@@ -4,72 +4,82 @@ use crate::{
 };
 use glam::{Quat, Vec3};
 
-fn add_standard_sandbox(bodies: &mut Vec<Body>, colors: &mut Vec<Vec3>) {
+fn add_standard_sandbox(bodies: &mut BodyArena) {
     let wall_color = Vec3::splat(0.5);
 
     let box_ground = make_box_ground();
     let box_wall0 = make_box_wall0();
     let box_wall1 = make_box_wall1();
 
-    bodies.push(Body {
-        position: Vec3::ZERO,
-        orientation: Quat::IDENTITY,
-        linear_velocity: Vec3::ZERO,
-        angular_velocity: Vec3::ZERO,
-        inv_mass: 0.0,
-        elasticity: 0.5,
-        friction: 0.5,
-        shape: box_ground,
-    });
-    colors.push(Vec3::new(0.3, 0.5, 0.3));
+    bodies.add_with_color(
+        Body {
+            position: Vec3::ZERO,
+            orientation: Quat::IDENTITY,
+            linear_velocity: Vec3::ZERO,
+            angular_velocity: Vec3::ZERO,
+            inv_mass: 0.0,
+            elasticity: 0.5,
+            friction: 0.5,
+            shape: box_ground,
+        },
+        Vec3::new(0.3, 0.5, 0.3),
+    );
 
-    bodies.push(Body {
-        position: Vec3::new(50.0, 0.0, 0.0),
-        orientation: Quat::IDENTITY,
-        linear_velocity: Vec3::ZERO,
-        angular_velocity: Vec3::ZERO,
-        inv_mass: 0.0,
-        elasticity: 0.5,
-        friction: 0.0,
-        shape: box_wall0.clone(),
-    });
-    colors.push(wall_color);
+    bodies.add_with_color(
+        Body {
+            position: Vec3::new(50.0, 0.0, 0.0),
+            orientation: Quat::IDENTITY,
+            linear_velocity: Vec3::ZERO,
+            angular_velocity: Vec3::ZERO,
+            inv_mass: 0.0,
+            elasticity: 0.5,
+            friction: 0.0,
+            shape: box_wall0.clone(),
+        },
+        wall_color,
+    );
 
-    bodies.push(Body {
-        position: Vec3::new(-50.0, 0.0, 0.0),
-        orientation: Quat::IDENTITY,
-        linear_velocity: Vec3::ZERO,
-        angular_velocity: Vec3::ZERO,
-        inv_mass: 0.0,
-        elasticity: 0.5,
-        friction: 0.0,
-        shape: box_wall0,
-    });
-    colors.push(wall_color);
+    bodies.add_with_color(
+        Body {
+            position: Vec3::new(-50.0, 0.0, 0.0),
+            orientation: Quat::IDENTITY,
+            linear_velocity: Vec3::ZERO,
+            angular_velocity: Vec3::ZERO,
+            inv_mass: 0.0,
+            elasticity: 0.5,
+            friction: 0.0,
+            shape: box_wall0,
+        },
+        wall_color,
+    );
 
-    bodies.push(Body {
-        position: Vec3::new(0.0, 0.0, 25.0),
-        orientation: Quat::IDENTITY,
-        linear_velocity: Vec3::ZERO,
-        angular_velocity: Vec3::ZERO,
-        inv_mass: 0.0,
-        elasticity: 0.5,
-        friction: 0.0,
-        shape: box_wall1.clone(),
-    });
-    colors.push(wall_color);
+    bodies.add_with_color(
+        Body {
+            position: Vec3::new(0.0, 0.0, 25.0),
+            orientation: Quat::IDENTITY,
+            linear_velocity: Vec3::ZERO,
+            angular_velocity: Vec3::ZERO,
+            inv_mass: 0.0,
+            elasticity: 0.5,
+            friction: 0.0,
+            shape: box_wall1.clone(),
+        },
+        wall_color,
+    );
 
-    bodies.push(Body {
-        position: Vec3::new(0.0, 0.0, -25.0),
-        orientation: Quat::IDENTITY,
-        linear_velocity: Vec3::ZERO,
-        angular_velocity: Vec3::ZERO,
-        inv_mass: 0.0,
-        elasticity: 0.5,
-        friction: 0.0,
-        shape: box_wall1,
-    });
-    colors.push(wall_color);
+    bodies.add_with_color(
+        Body {
+            position: Vec3::new(0.0, 0.0, -25.0),
+            orientation: Quat::IDENTITY,
+            linear_velocity: Vec3::ZERO,
+            angular_velocity: Vec3::ZERO,
+            inv_mass: 0.0,
+            elasticity: 0.5,
+            friction: 0.0,
+            shape: box_wall1,
+        },
+        wall_color,
+    );
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -90,10 +100,121 @@ pub struct Contact {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct BodyHandle(pub u32);
 
-pub struct PhysicsScene {
+#[derive(Debug)]
+pub struct BodyArena {
     bodies: Vec<Body>,
-    colors: Vec<Vec3>,
     handles: Vec<BodyHandle>,
+    colors: Vec<Vec3>,
+}
+
+impl BodyArena {
+    pub fn new() -> Self {
+        BodyArena {
+            bodies: Vec::new(),
+            handles: Vec::new(),
+            colors: Vec::new(),
+        }
+    }
+
+    pub fn add(&mut self, body: Body) -> BodyHandle {
+        self.add_with_color(body, Vec3::new(0.3, 0.5, 0.3))
+    }
+
+    pub fn add_with_color(&mut self, body: Body, rgb: Vec3) -> BodyHandle {
+        let handle = BodyHandle(self.bodies.len() as u32);
+        self.bodies.push(body);
+        self.handles.push(handle);
+        self.colors.push(rgb);
+        handle
+    }
+
+    pub fn iter(&self) -> core::slice::Iter<Body> {
+        self.bodies.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> core::slice::IterMut<Body> {
+        self.bodies.iter_mut()
+    }
+
+    pub fn clear(&mut self) {
+        self.bodies.clear();
+        self.handles.clear();
+        self.colors.clear();
+    }
+
+    pub fn len(&self) -> usize {
+        self.bodies.len()
+    }
+
+    fn get_body_pair_mut_from_indices(
+        &mut self,
+        index_a: usize,
+        index_b: usize,
+    ) -> (&mut Body, &mut Body) {
+        match index_a.cmp(&index_b) {
+            std::cmp::Ordering::Less => {
+                let mut iter = self.bodies.iter_mut();
+                let body_a = iter.nth(index_a).unwrap();
+                let body_b = iter.nth(index_b - index_a - 1).unwrap();
+                (body_a, body_b)
+            }
+            std::cmp::Ordering::Greater => {
+                let mut iter = self.bodies.iter_mut();
+                let body_b = iter.nth(index_b).unwrap();
+                let body_a = iter.nth(index_a - index_b - 1).unwrap();
+                (body_a, body_b)
+            }
+            std::cmp::Ordering::Equal => {
+                panic!("get_body_pair_mut called with the same index {}", index_a)
+            }
+        }
+    }
+
+    pub fn get_body_pair_mut(
+        &mut self,
+        index_a: BodyHandle,
+        index_b: BodyHandle,
+    ) -> (&mut Body, &mut Body) {
+        self.get_body_pair_mut_from_indices(index_a.0 as usize, index_b.0 as usize)
+    }
+
+    pub fn get_body_mut(&mut self, handle: BodyHandle) -> &mut Body {
+        &mut self.bodies[handle.0 as usize]
+    }
+
+    pub fn get_body(&self, handle: BodyHandle) -> &Body {
+        &self.bodies[handle.0 as usize]
+    }
+
+    pub fn handles(&self) -> &Vec<BodyHandle> {
+        &self.handles
+    }
+
+    pub fn get_color(&self, handle: BodyHandle) -> Vec3 {
+        self.colors[handle.0 as usize]
+    }
+}
+
+// impl<'a> IntoIterator for &'a BodyArena {
+//     type Item = &'a Body;
+//     type IntoIter = std::slice::Iter<'a, Body>;
+
+//     fn into_iter(self) -> Self::IntoIter {
+//         self.bodies.iter()
+//     }
+// }
+
+// impl<'a> IntoIterator for &'a mut BodyArena {
+//     type Item = &'a mut Body;
+//     type IntoIter = std::slice::IterMut<'a, Body>;
+
+//     fn into_iter(self) -> Self::IntoIter {
+//         self.bodies.iter_mut()
+//     }
+// }
+
+pub struct PhysicsScene {
+    bodies: BodyArena,
     contacts: Option<Vec<Contact>>,
     constraints: Vec<Constraint>,
     step_num: u64,
@@ -103,10 +224,8 @@ pub struct PhysicsScene {
 impl PhysicsScene {
     pub fn new() -> Self {
         let mut scene = PhysicsScene {
-            bodies: Vec::new(),
+            bodies: BodyArena::new(),
             constraints: Vec::new(),
-            colors: Vec::new(),
-            handles: Vec::new(),
             contacts: None,
             step_num: 0,
             paused: true,
@@ -120,7 +239,6 @@ impl PhysicsScene {
         // let num_bodies = 6 * 6 + 3 * 3;
         self.bodies.clear();
         self.constraints.clear();
-        self.colors.clear();
 
         /*
         let ball_shape = Shape::make_sphere(0.5);
@@ -148,7 +266,7 @@ impl PhysicsScene {
         }
         */
 
-        self.bodies.push(Body {
+        self.bodies.add(Body {
             position: Vec3::new(10.0, 3.0, 0.0),
             orientation: Quat::IDENTITY,
             linear_velocity: Vec3::new(-100.0, 0.0, 0.0),
@@ -158,9 +276,8 @@ impl PhysicsScene {
             friction: 0.5,
             shape: make_sphere(0.5),
         });
-        self.colors.push(Vec3::new(0.8, 0.7, 0.6));
 
-        self.bodies.push(Body {
+        self.bodies.add(Body {
             position: Vec3::new(-10.0, 3.0, 0.0),
             orientation: Quat::IDENTITY,
             linear_velocity: Vec3::new(100.0, 0.0, 0.0),
@@ -170,16 +287,8 @@ impl PhysicsScene {
             friction: 0.5,
             shape: make_diamond(),
         });
-        self.colors.push(Vec3::new(0.8, 0.7, 0.6));
 
-        add_standard_sandbox(&mut self.bodies, &mut self.colors);
-
-        self.handles = self
-            .bodies
-            .iter()
-            .enumerate()
-            .map(|(index, _body)| BodyHandle(index as u32))
-            .collect();
+        add_standard_sandbox(&mut self.bodies);
 
         let max_contacts = self.bodies.len() * self.bodies.len();
         self.contacts.replace(Vec::with_capacity(max_contacts));
@@ -188,7 +297,9 @@ impl PhysicsScene {
     }
 
     fn resolve_contact(&mut self, contact: &Contact) {
-        let (body_a, body_b) = self.get_body_pair_mut(contact.handle_a, contact.handle_b);
+        let (body_a, body_b) = self
+            .bodies
+            .get_body_pair_mut(contact.handle_a, contact.handle_b);
         debug_assert!(!body_a.has_infinite_mass() || !body_b.has_infinite_mass());
 
         let point_on_a = body_a.local_to_world(contact.local_point_a);
@@ -260,7 +371,7 @@ impl PhysicsScene {
     pub fn update(&mut self, delta_seconds: f32) {
         self.step_num += 1;
 
-        for body in &mut self.bodies {
+        for body in self.bodies.iter_mut() {
             if !body.has_infinite_mass() {
                 // gravity needs to be an impulse
                 // I = dp, F = dp/dt => dp = F * dt => I = F * dt
@@ -280,7 +391,7 @@ impl PhysicsScene {
 
         // narrowphase (perform actual collision detection)
         for pair in collision_pairs {
-            let (body_a, body_b) = self.get_body_pair_mut(pair.a, pair.b);
+            let (body_a, body_b) = self.bodies.get_body_pair_mut(pair.a, pair.b);
 
             // skip body pairs with infinite mass
             if body_a.has_infinite_mass() && body_b.has_infinite_mass() {
@@ -307,14 +418,12 @@ impl PhysicsScene {
         });
 
         // solve constraints
-        for _constraint in &mut self.constraints {
-            // TODO: make bodies self contained
-            // constraint.pre_solve(&self, delta_seconds);
+        for constraint in &mut self.constraints {
+            constraint.pre_solve(&self.bodies, delta_seconds);
         }
 
-        for _constraint in &mut self.constraints {
-            // TODO
-            // constraint.solve(&mut self);
+        for constraint in &mut self.constraints {
+            constraint.solve(&mut self.bodies);
         }
 
         for constraint in &mut self.constraints {
@@ -327,7 +436,7 @@ impl PhysicsScene {
             let contact_time = contact.time_of_impact - accumulated_time;
 
             // position update
-            for body in &mut self.bodies {
+            for body in self.bodies.iter_mut() {
                 body.update(contact_time)
             }
 
@@ -338,7 +447,7 @@ impl PhysicsScene {
         // update positions for the rest of this frame's time
         let time_remaining = delta_seconds - accumulated_time;
         if time_remaining > 0.0 {
-            for body in &mut self.bodies {
+            for body in self.bodies.iter_mut() {
                 body.update(time_remaining);
             }
         }
@@ -360,54 +469,6 @@ impl PhysicsScene {
 
         // move contacts ownership back to self to avoid re-allocating next update
         self.contacts.replace(contacts);
-    }
-
-    fn get_body_pair_mut_from_indices(
-        &mut self,
-        index_a: usize,
-        index_b: usize,
-    ) -> (&mut Body, &mut Body) {
-        match index_a.cmp(&index_b) {
-            std::cmp::Ordering::Less => {
-                let mut iter = self.bodies.iter_mut();
-                let body_a = iter.nth(index_a).unwrap();
-                let body_b = iter.nth(index_b - index_a - 1).unwrap();
-                (body_a, body_b)
-            }
-            std::cmp::Ordering::Greater => {
-                let mut iter = self.bodies.iter_mut();
-                let body_b = iter.nth(index_b).unwrap();
-                let body_a = iter.nth(index_a - index_b - 1).unwrap();
-                (body_a, body_b)
-            }
-            std::cmp::Ordering::Equal => {
-                panic!("get_body_pair_mut called with the same index {}", index_a)
-            }
-        }
-    }
-
-    pub fn get_body_pair_mut(
-        &mut self,
-        index_a: BodyHandle,
-        index_b: BodyHandle,
-    ) -> (&mut Body, &mut Body) {
-        self.get_body_pair_mut_from_indices(index_a.0 as usize, index_b.0 as usize)
-    }
-
-    pub fn get_body_mut(&mut self, handle: BodyHandle) -> &mut Body {
-        &mut self.bodies[handle.0 as usize]
-    }
-
-    pub fn get_body(&self, handle: BodyHandle) -> &Body {
-        &self.bodies[handle.0 as usize]
-    }
-
-    pub fn handles(&self) -> &Vec<BodyHandle> {
-        &self.handles
-    }
-
-    pub fn get_color(&self, handle: BodyHandle) -> Vec3 {
-        self.colors[handle.0 as usize]
     }
 }
 
