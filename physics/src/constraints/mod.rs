@@ -30,13 +30,15 @@ impl ConstraintArena {
         self.constraints.push(constraint);
     }
 
-    pub fn solve(&mut self, bodies: &mut BodyArena, dt_sec: f32) {
+    pub fn solve(&mut self, bodies: &mut BodyArena, dt_sec: f32, max_iters: u32) {
         for constraint in &mut self.constraints {
             constraint.pre_solve(bodies, dt_sec);
         }
 
-        for constraint in &mut self.constraints {
-            constraint.solve(bodies);
+        for _ in 0..max_iters {
+            for constraint in &mut self.constraints {
+                constraint.solve(bodies);
+            }
         }
 
         for constraint in &mut self.constraints {

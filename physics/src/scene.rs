@@ -300,6 +300,7 @@ impl PhysicsScene {
     pub fn update(&mut self, delta_seconds: f32) {
         self.step_num += 1;
 
+        // gravity impulse
         for body in self.bodies.iter_mut() {
             if !body.has_infinite_mass() {
                 // gravity needs to be an impulse
@@ -311,13 +312,11 @@ impl PhysicsScene {
             }
         }
 
-        // broadphase
+        // broadphase (build potential collision pairs)
         let collision_pairs = broadphase(&self.bodies, delta_seconds);
 
-        // move contacts ownership to local
-        self.contacts.clear();
-
         // narrowphase (perform actual collision detection)
+        self.contacts.clear();
         for pair in collision_pairs {
             let (body_a, body_b) = self.bodies.get_body_pair_mut(pair.a, pair.b);
 
@@ -326,6 +325,7 @@ impl PhysicsScene {
                 continue;
             }
 
+            // check for intersection
             if let Some(contact) = intersect_dynamic(pair.a, body_a, pair.b, body_b, delta_seconds)
             {
                 self.contacts.push(contact)
@@ -336,7 +336,8 @@ impl PhysicsScene {
         self.contacts.sort();
 
         // solve constraints
-        self.constraints.solve(&mut self.bodies, delta_seconds);
+        const MAX_ITERS: u32 = 50;
+        self.constraints.solve(&mut self.bodies, delta_seconds, MAX_ITERS);
 
         // apply ballistic impulses
         let mut accumulated_time = 0.0;
