@@ -186,6 +186,13 @@ impl BodyArena {
         &self.bodies[handle.0 as usize]
     }
 
+    pub fn get_body_with_color(&self, handle: BodyHandle) -> (&Body, Vec3) {
+        (
+            &self.bodies[handle.0 as usize],
+            self.colors[handle.0 as usize],
+        )
+    }
+
     pub fn handles(&self) -> &Vec<BodyHandle> {
         &self.handles
     }
@@ -469,6 +476,18 @@ impl PhysicsScene {
 
         // move contacts ownership back to self to avoid re-allocating next update
         self.contacts.replace(contacts);
+    }
+
+    pub fn get_body(&self, handle: BodyHandle) -> &Body {
+        self.bodies.get_body(handle)
+    }
+
+    pub fn get_body_with_color(&self, handle: BodyHandle) -> (&Body, Vec3) {
+        self.bodies.get_body_with_color(handle)
+    }
+
+    pub fn iter_body_handles(&self) -> core::slice::Iter<BodyHandle> {
+        self.bodies.handles().iter()
     }
 }
 

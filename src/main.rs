@@ -86,9 +86,8 @@ fn setup_rendering(
         ..Default::default()
     });
 
-    for &body_handle in physics_scene.handles().iter() {
-        let body = physics_scene.get_body(body_handle);
-        let color = physics_scene.get_color(body_handle);
+    for &body_handle in physics_scene.iter_body_handles() {
+        let (body, color) = physics_scene.get_body_with_color(body_handle);
         let color = Color::rgb(color.x, color.y, color.z);
         let mesh = meshes.add(render::create_mesh_from_shape(body.shape.borrow()));
         commands
