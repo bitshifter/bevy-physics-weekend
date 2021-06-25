@@ -86,4 +86,19 @@ impl ConstraintTrait for ConstraintDistance {
         // accumulate the impulses for warm starting
         self.cached_lambda += lambda_n;
     }
+
+    fn post_solve(&mut self) {
+        // limit the warm starting to reasonable limits
+        if !self.cached_lambda[0].is_finite() {
+            self.cached_lambda[0] = 0.0
+        }
+
+        const LIMIT: f32 = 1e5;
+        if self.cached_lambda[0] > LIMIT {
+            self.cached_lambda[0] = LIMIT;
+        }
+        if self.cached_lambda[0] < -LIMIT {
+            self.cached_lambda[0] = -LIMIT;
+        }
+    }
 }
