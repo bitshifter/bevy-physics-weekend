@@ -1,7 +1,7 @@
 use super::{ConstraintConfig, ConstraintTrait};
 use crate::{
+    body::BodyArena,
     math::{lcp_gauss_seidel, MatMN, MatN},
-    scene::BodyArena,
 };
 
 pub struct ConstraintDistance {

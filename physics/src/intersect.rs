@@ -1,7 +1,7 @@
 use crate::{
-    body::Body,
+    body::{Body, BodyHandle},
+    contact::Contact,
     gjk::{gjk_closest_points, gjk_does_intersect},
-    scene::{BodyHandle, Contact},
     shapes::Shape,
 };
 use glam::Vec3;

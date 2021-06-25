@@ -1,8 +1,8 @@
 mod constraint_distance;
 
 use crate::{
+    body::{BodyArena, BodyHandle},
     math::{MatMN, VecN},
-    scene::{BodyArena, BodyHandle},
 };
 use constraint_distance::ConstraintDistance;
 use glam::Vec3;
@@ -30,19 +30,15 @@ impl ConstraintArena {
         self.constraints.push(constraint);
     }
 
-    pub fn pre_solve(&mut self, bodies: &BodyArena, dt_sec: f32) {
+    pub fn solve(&mut self, bodies: &mut BodyArena, dt_sec: f32) {
         for constraint in &mut self.constraints {
             constraint.pre_solve(bodies, dt_sec);
         }
-    }
 
-    pub fn solve(&mut self, bodies: &mut BodyArena) {
         for constraint in &mut self.constraints {
             constraint.solve(bodies);
         }
-    }
 
-    pub fn post_solve(&mut self) {
         for constraint in &mut self.constraints {
             constraint.post_solve();
         }
@@ -97,7 +93,7 @@ impl ConstraintConfig {
 
             let inv_intertia_a = body_a.inv_intertia_tensor_world();
             for i in 0..3 {
-                inv_mass_matrix.rows[3 + i][3 + 0] = inv_intertia_a.col(i)[0];
+                inv_mass_matrix.rows[3 + i][3] = inv_intertia_a.col(i)[0];
                 inv_mass_matrix.rows[3 + i][3 + 1] = inv_intertia_a.col(i)[1];
                 inv_mass_matrix.rows[3 + i][3 + 2] = inv_intertia_a.col(i)[2];
             }
@@ -111,7 +107,7 @@ impl ConstraintConfig {
 
             let inv_intertia_b = body_b.inv_intertia_tensor_world();
             for i in 0..3 {
-                inv_mass_matrix.rows[9 + i][9 + 0] = inv_intertia_b.col(i)[0];
+                inv_mass_matrix.rows[9 + i][9] = inv_intertia_b.col(i)[0];
                 inv_mass_matrix.rows[9 + i][9 + 1] = inv_intertia_b.col(i)[1];
                 inv_mass_matrix.rows[9 + i][9 + 2] = inv_intertia_b.col(i)[2];
             }

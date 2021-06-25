@@ -3,7 +3,7 @@ mod time_accumulator;
 
 use bevy::prelude::*;
 use bevy_flycam::PlayerPlugin;
-use physics::scene::{BodyHandle, PhysicsScene};
+use physics::{body::BodyHandle, scene::PhysicsScene};
 use std::borrow::Borrow;
 use time_accumulator::TimeAccumulator;
 

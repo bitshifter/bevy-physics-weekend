@@ -1,6 +1,156 @@
 use crate::shapes::Shape;
 use glam::{Mat3, Quat, Vec3};
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct BodyHandle(pub u32);
+
+#[derive(Debug)]
+pub struct BodyArena {
+    bodies: Vec<Body>,
+    handles: Vec<BodyHandle>,
+    colors: Vec<Vec3>,
+}
+
+impl Default for BodyArena {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl BodyArena {
+    pub fn new() -> Self {
+        BodyArena {
+            bodies: Vec::new(),
+            handles: Vec::new(),
+            colors: Vec::new(),
+        }
+    }
+
+    pub fn add(&mut self, body: Body) -> BodyHandle {
+        self.add_with_color(body, Vec3::new(0.3, 0.5, 0.3))
+    }
+
+    pub fn add_with_color(&mut self, body: Body, rgb: Vec3) -> BodyHandle {
+        let handle = BodyHandle(self.bodies.len() as u32);
+        self.bodies.push(body);
+        self.handles.push(handle);
+        self.colors.push(rgb);
+        handle
+    }
+
+    pub fn iter(&self) -> core::slice::Iter<Body> {
+        self.bodies.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> core::slice::IterMut<Body> {
+        self.bodies.iter_mut()
+    }
+
+    pub fn clear(&mut self) {
+        self.bodies.clear();
+        self.handles.clear();
+        self.colors.clear();
+    }
+
+    pub fn len(&self) -> usize {
+        self.bodies.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.bodies.is_empty()
+    }
+
+    fn get_body_pair_mut_from_indices(
+        &mut self,
+        index_a: usize,
+        index_b: usize,
+    ) -> (&mut Body, &mut Body) {
+        match index_a.cmp(&index_b) {
+            std::cmp::Ordering::Less => {
+                let mut iter = self.bodies.iter_mut();
+                let body_a = iter.nth(index_a).unwrap();
+                let body_b = iter.nth(index_b - index_a - 1).unwrap();
+                (body_a, body_b)
+            }
+            std::cmp::Ordering::Greater => {
+                let mut iter = self.bodies.iter_mut();
+                let body_b = iter.nth(index_b).unwrap();
+                let body_a = iter.nth(index_a - index_b - 1).unwrap();
+                (body_a, body_b)
+            }
+            std::cmp::Ordering::Equal => {
+                panic!("get_body_pair_mut called with the same index {}", index_a)
+            }
+        }
+    }
+
+    pub fn get_body_pair_mut(
+        &mut self,
+        index_a: BodyHandle,
+        index_b: BodyHandle,
+    ) -> (&mut Body, &mut Body) {
+        self.get_body_pair_mut_from_indices(index_a.0 as usize, index_b.0 as usize)
+    }
+
+    pub fn get_body_mut(&mut self, handle: BodyHandle) -> &mut Body {
+        &mut self.bodies[handle.0 as usize]
+    }
+
+    pub fn get_body(&self, handle: BodyHandle) -> &Body {
+        &self.bodies[handle.0 as usize]
+    }
+
+    pub fn get_body_with_color(&self, handle: BodyHandle) -> (&Body, Vec3) {
+        (
+            &self.bodies[handle.0 as usize],
+            self.colors[handle.0 as usize],
+        )
+    }
+
+    pub fn handles(&self) -> &Vec<BodyHandle> {
+        &self.handles
+    }
+
+    pub fn get_color(&self, handle: BodyHandle) -> Vec3 {
+        self.colors[handle.0 as usize]
+    }
+
+    pub fn print_bodies(&self, step_num: u64, delta_seconds: f32) {
+        for (index, body) in self.bodies.iter().enumerate() {
+            if !body.has_infinite_mass() {
+                println!(
+                    "step: {} dt: {} index: {} pos: {} rot: {} lin: {} ang: {}",
+                    step_num,
+                    delta_seconds,
+                    index,
+                    body.position,
+                    body.orientation,
+                    body.linear_velocity,
+                    body.angular_velocity
+                );
+            }
+        }
+    }
+}
+
+// impl<'a> IntoIterator for &'a BodyArena {
+//     type Item = &'a Body;
+//     type IntoIter = std::slice::Iter<'a, Body>;
+
+//     fn into_iter(self) -> Self::IntoIter {
+//         self.bodies.iter()
+//     }
+// }
+
+// impl<'a> IntoIterator for &'a mut BodyArena {
+//     type Item = &'a mut Body;
+//     type IntoIter = std::slice::IterMut<'a, Body>;
+
+//     fn into_iter(self) -> Self::IntoIter {
+//         self.bodies.iter_mut()
+//     }
+// }
+
 #[derive(Clone, Debug)]
 pub struct Body {
     pub position: Vec3,

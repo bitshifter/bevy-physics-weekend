@@ -1,7 +1,8 @@
 use crate::{
-    body::Body,
+    body::{Body, BodyArena, BodyHandle},
     broadphase::broadphase,
     constraints::{ConstraintArena, ConstraintConfig},
+    contact::{Contact, ContactArena},
     intersect::intersect_dynamic,
     scene_shapes::*,
 };
@@ -85,148 +86,80 @@ fn add_standard_sandbox(bodies: &mut BodyArena) {
     );
 }
 
-#[derive(Copy, Clone, Debug)]
-pub struct Contact {
-    pub world_point_a: Vec3,
-    pub world_point_b: Vec3,
-    pub local_point_a: Vec3,
-    pub local_point_b: Vec3,
-    pub normal: Vec3,
+fn resolve_contact(bodies: &mut BodyArena, contact: &Contact) {
+    let (body_a, body_b) = bodies.get_body_pair_mut(contact.handle_a, contact.handle_b);
+    debug_assert!(!body_a.has_infinite_mass() || !body_b.has_infinite_mass());
 
-    pub separation_dist: f32,
-    pub time_of_impact: f32,
+    let point_on_a = body_a.local_to_world(contact.local_point_a);
+    let point_on_b = body_b.local_to_world(contact.local_point_b);
 
-    pub handle_a: BodyHandle,
-    pub handle_b: BodyHandle,
-}
+    let elasticity = body_a.elasticity * body_b.elasticity;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct BodyHandle(pub u32);
+    let inv_inertia_world_a = body_a.inv_intertia_tensor_world();
+    let inv_inertia_world_b = body_b.inv_intertia_tensor_world();
 
-#[derive(Debug)]
-pub struct BodyArena {
-    bodies: Vec<Body>,
-    handles: Vec<BodyHandle>,
-    colors: Vec<Vec3>,
-}
+    let ra = point_on_a - body_a.centre_of_mass_world();
+    let rb = point_on_b - body_b.centre_of_mass_world();
 
-impl BodyArena {
-    pub fn new() -> Self {
-        BodyArena {
-            bodies: Vec::new(),
-            handles: Vec::new(),
-            colors: Vec::new(),
-        }
-    }
+    let angular_j_a = (inv_inertia_world_a * ra.cross(contact.normal)).cross(ra);
+    let angular_j_b = (inv_inertia_world_b * rb.cross(contact.normal)).cross(rb);
+    let angular_factor = (angular_j_a + angular_j_b).dot(contact.normal);
 
-    pub fn add(&mut self, body: Body) -> BodyHandle {
-        self.add_with_color(body, Vec3::new(0.3, 0.5, 0.3))
-    }
+    // calculate the world space velocity of the motion and rotation
+    let vel_a = body_a.linear_velocity + body_a.angular_velocity.cross(ra);
+    let vel_b = body_b.linear_velocity + body_b.angular_velocity.cross(rb);
 
-    pub fn add_with_color(&mut self, body: Body, rgb: Vec3) -> BodyHandle {
-        let handle = BodyHandle(self.bodies.len() as u32);
-        self.bodies.push(body);
-        self.handles.push(handle);
-        self.colors.push(rgb);
-        handle
-    }
+    // calculate the collision impulse
+    let vab = vel_a - vel_b;
+    let total_inv_mass = body_a.inv_mass + body_b.inv_mass;
+    let impulse_j =
+        (1.0 + elasticity) * vab.dot(contact.normal) / (total_inv_mass + angular_factor);
+    let vec_impulse_j = contact.normal * impulse_j;
 
-    pub fn iter(&self) -> core::slice::Iter<Body> {
-        self.bodies.iter()
-    }
+    body_a.apply_impulse(point_on_a, -vec_impulse_j);
+    body_b.apply_impulse(point_on_b, vec_impulse_j);
 
-    pub fn iter_mut(&mut self) -> core::slice::IterMut<Body> {
-        self.bodies.iter_mut()
-    }
+    // calculate the impulse caused by friction
+    let friction = body_a.friction * body_b.friction;
 
-    pub fn clear(&mut self) {
-        self.bodies.clear();
-        self.handles.clear();
-        self.colors.clear();
-    }
+    // find the normal direction of the velocity with respect to the normal of the collision
+    let vel_normal = contact.normal * contact.normal.dot(vab);
 
-    pub fn len(&self) -> usize {
-        self.bodies.len()
-    }
+    // find the tangent direction of the velocity with respect to the normal of the collision
+    let vel_tan = vab - vel_normal;
 
-    fn get_body_pair_mut_from_indices(
-        &mut self,
-        index_a: usize,
-        index_b: usize,
-    ) -> (&mut Body, &mut Body) {
-        match index_a.cmp(&index_b) {
-            std::cmp::Ordering::Less => {
-                let mut iter = self.bodies.iter_mut();
-                let body_a = iter.nth(index_a).unwrap();
-                let body_b = iter.nth(index_b - index_a - 1).unwrap();
-                (body_a, body_b)
-            }
-            std::cmp::Ordering::Greater => {
-                let mut iter = self.bodies.iter_mut();
-                let body_b = iter.nth(index_b).unwrap();
-                let body_a = iter.nth(index_a - index_b - 1).unwrap();
-                (body_a, body_b)
-            }
-            std::cmp::Ordering::Equal => {
-                panic!("get_body_pair_mut called with the same index {}", index_a)
-            }
-        }
-    }
+    // get the tangential velocities relative to the other body
+    let rel_vel_tan = vel_tan.normalize_or_zero();
 
-    pub fn get_body_pair_mut(
-        &mut self,
-        index_a: BodyHandle,
-        index_b: BodyHandle,
-    ) -> (&mut Body, &mut Body) {
-        self.get_body_pair_mut_from_indices(index_a.0 as usize, index_b.0 as usize)
-    }
+    let inertia_a = (inv_inertia_world_a * ra.cross(rel_vel_tan)).cross(ra);
+    let inertia_b = (inv_inertia_world_b * rb.cross(rel_vel_tan)).cross(rb);
+    let inv_inertia = (inertia_a + inertia_b).dot(rel_vel_tan);
 
-    pub fn get_body_mut(&mut self, handle: BodyHandle) -> &mut Body {
-        &mut self.bodies[handle.0 as usize]
-    }
+    // calculate the tangential impulse for friction
+    let reduced_mass = 1.0 / (total_inv_mass + inv_inertia);
+    let impulse_friction = vel_tan * reduced_mass * friction;
 
-    pub fn get_body(&self, handle: BodyHandle) -> &Body {
-        &self.bodies[handle.0 as usize]
-    }
+    // apply kinetic friction
+    body_a.apply_impulse(point_on_a, -impulse_friction);
+    body_b.apply_impulse(point_on_b, impulse_friction);
 
-    pub fn get_body_with_color(&self, handle: BodyHandle) -> (&Body, Vec3) {
-        (
-            &self.bodies[handle.0 as usize],
-            self.colors[handle.0 as usize],
-        )
-    }
+    // also move colliding objects to just outside of each other (projection method)
+    if contact.time_of_impact == 0.0 {
+        let ds = point_on_b - point_on_a;
 
-    pub fn handles(&self) -> &Vec<BodyHandle> {
-        &self.handles
-    }
+        let rcp_total_inv_mass = 1.0 / total_inv_mass;
+        let t_a = body_a.inv_mass * rcp_total_inv_mass;
+        let t_b = body_b.inv_mass * rcp_total_inv_mass;
 
-    pub fn get_color(&self, handle: BodyHandle) -> Vec3 {
-        self.colors[handle.0 as usize]
+        body_a.position += ds * t_a;
+        body_b.position -= ds * t_b;
     }
 }
-
-// impl<'a> IntoIterator for &'a BodyArena {
-//     type Item = &'a Body;
-//     type IntoIter = std::slice::Iter<'a, Body>;
-
-//     fn into_iter(self) -> Self::IntoIter {
-//         self.bodies.iter()
-//     }
-// }
-
-// impl<'a> IntoIterator for &'a mut BodyArena {
-//     type Item = &'a mut Body;
-//     type IntoIter = std::slice::IterMut<'a, Body>;
-
-//     fn into_iter(self) -> Self::IntoIter {
-//         self.bodies.iter_mut()
-//     }
-// }
 
 pub struct PhysicsScene {
     bodies: BodyArena,
     constraints: ConstraintArena,
-    contacts: Option<Vec<Contact>>,
+    contacts: ContactArena,
     step_num: u64,
     pub paused: bool,
 }
@@ -236,7 +169,7 @@ impl PhysicsScene {
         let mut scene = PhysicsScene {
             bodies: BodyArena::new(),
             constraints: ConstraintArena::new(),
-            contacts: None,
+            contacts: ContactArena::new(),
             step_num: 0,
             paused: true,
         };
@@ -276,6 +209,7 @@ impl PhysicsScene {
         }
         */
 
+        /*
         let handle_a = self.bodies.add(Body {
             position: Vec3::new(0.0, 5.0, 0.0),
             orientation: Quat::IDENTITY,
@@ -313,85 +247,54 @@ impl PhysicsScene {
             anchor_b,
             axis_b: Vec3::ZERO,
         });
+        */
+
+        let box_small = make_box_small();
+        let mut handle_a = self.bodies.add(Body {
+            position: Vec3::new(0.0, NUM_JOINTS as f32 + 3.0, 5.0),
+            orientation: Quat::IDENTITY,
+            inv_mass: 0.0,
+            elasticity: 1.0,
+            shape: box_small.clone(),
+            ..Body::default()
+        });
+
+        const NUM_JOINTS: usize = 5;
+        for _ in 0..NUM_JOINTS {
+            let body_a = self.bodies.get_body(handle_a);
+            let joint_world_space_anchor = body_a.position;
+
+            let anchor_a = body_a.world_to_local(joint_world_space_anchor);
+
+            let body_b = Body {
+                position: body_a.position + Vec3::X,
+                inv_mass: 1.0,
+                elasticity: 1.0,
+                shape: box_small.clone(),
+                ..Body::default()
+            };
+
+            let anchor_b = body_b.world_to_local(joint_world_space_anchor);
+            let handle_b = self.bodies.add(body_b);
+
+            self.constraints.add_distance_constraint(ConstraintConfig {
+                handle_a,
+                handle_b,
+                anchor_a,
+                anchor_b,
+                axis_a: Vec3::ZERO,
+                axis_b: Vec3::ZERO,
+            });
+
+            handle_a = handle_b;
+        }
 
         add_standard_sandbox(&mut self.bodies);
 
         let max_contacts = self.bodies.len() * self.bodies.len();
-        self.contacts.replace(Vec::with_capacity(max_contacts));
+        self.contacts.clear_with_capacity(max_contacts);
 
         self.paused = true;
-    }
-
-    fn resolve_contact(&mut self, contact: &Contact) {
-        let (body_a, body_b) = self
-            .bodies
-            .get_body_pair_mut(contact.handle_a, contact.handle_b);
-        debug_assert!(!body_a.has_infinite_mass() || !body_b.has_infinite_mass());
-
-        let point_on_a = body_a.local_to_world(contact.local_point_a);
-        let point_on_b = body_b.local_to_world(contact.local_point_b);
-
-        let elasticity = body_a.elasticity * body_b.elasticity;
-
-        let inv_inertia_world_a = body_a.inv_intertia_tensor_world();
-        let inv_inertia_world_b = body_b.inv_intertia_tensor_world();
-
-        let ra = point_on_a - body_a.centre_of_mass_world();
-        let rb = point_on_b - body_b.centre_of_mass_world();
-
-        let angular_j_a = (inv_inertia_world_a * ra.cross(contact.normal)).cross(ra);
-        let angular_j_b = (inv_inertia_world_b * rb.cross(contact.normal)).cross(rb);
-        let angular_factor = (angular_j_a + angular_j_b).dot(contact.normal);
-
-        // calculate the world space velocity of the motion and rotation
-        let vel_a = body_a.linear_velocity + body_a.angular_velocity.cross(ra);
-        let vel_b = body_b.linear_velocity + body_b.angular_velocity.cross(rb);
-
-        // calculate the collision impulse
-        let vab = vel_a - vel_b;
-        let total_inv_mass = body_a.inv_mass + body_b.inv_mass;
-        let impulse_j =
-            (1.0 + elasticity) * vab.dot(contact.normal) / (total_inv_mass + angular_factor);
-        let vec_impulse_j = contact.normal * impulse_j;
-
-        body_a.apply_impulse(point_on_a, -vec_impulse_j);
-        body_b.apply_impulse(point_on_b, vec_impulse_j);
-
-        // calculate the impulse caused by friction
-        let friction = body_a.friction * body_b.friction;
-
-        // find the normal direction of the velocity with respect to the normal of the collision
-        let vel_normal = contact.normal * contact.normal.dot(vab);
-
-        // find the tangent direction of the velocity with respect to the normal of the collision
-        let vel_tan = vab - vel_normal;
-
-        // get the tangential velocities relative to the other body
-        let rel_vel_tan = vel_tan.normalize_or_zero();
-
-        let inertia_a = (inv_inertia_world_a * ra.cross(rel_vel_tan)).cross(ra);
-        let inertia_b = (inv_inertia_world_b * rb.cross(rel_vel_tan)).cross(rb);
-        let inv_inertia = (inertia_a + inertia_b).dot(rel_vel_tan);
-
-        // calculate the tangential impulse for friction
-        let reduced_mass = 1.0 / (total_inv_mass + inv_inertia);
-        let impulse_friction = vel_tan * reduced_mass * friction;
-
-        // apply kinetic friction
-        body_a.apply_impulse(point_on_a, -impulse_friction);
-        body_b.apply_impulse(point_on_b, impulse_friction);
-
-        // also move colliding objects to just outside of each other (projection method)
-        if contact.time_of_impact == 0.0 {
-            let ds = point_on_b - point_on_a;
-
-            let rcp_total_inv_mass = 1.0 / total_inv_mass;
-            let t_a = body_a.inv_mass * rcp_total_inv_mass;
-            let t_b = body_b.inv_mass * rcp_total_inv_mass;
-
-            body_a.position += ds * t_a;
-            body_b.position -= ds * t_b;
-        }
     }
 
     pub fn update(&mut self, delta_seconds: f32) {
@@ -412,8 +315,7 @@ impl PhysicsScene {
         let collision_pairs = broadphase(&self.bodies, delta_seconds);
 
         // move contacts ownership to local
-        let mut contacts = self.contacts.take().expect("Contacts storage missing!");
-        contacts.clear();
+        self.contacts.clear();
 
         // narrowphase (perform actual collision detection)
         for pair in collision_pairs {
@@ -426,33 +328,19 @@ impl PhysicsScene {
 
             if let Some(contact) = intersect_dynamic(pair.a, body_a, pair.b, body_b, delta_seconds)
             {
-                contacts.push(contact)
+                self.contacts.push(contact)
             }
         }
 
         // sort the times of impact from earliest to latest
-        contacts.sort_unstable_by(|a, b| {
-            // TODO: fix lint?
-            #[allow(clippy::float_cmp)]
-            if a.time_of_impact < b.time_of_impact {
-                std::cmp::Ordering::Less
-            } else if a.time_of_impact == b.time_of_impact {
-                std::cmp::Ordering::Equal
-            } else {
-                std::cmp::Ordering::Greater
-            }
-        });
+        self.contacts.sort();
 
         // solve constraints
-        self.constraints.pre_solve(&self.bodies, delta_seconds);
-
-        self.constraints.solve(&mut self.bodies);
-
-        self.constraints.post_solve();
+        self.constraints.solve(&mut self.bodies, delta_seconds);
 
         // apply ballistic impulses
         let mut accumulated_time = 0.0;
-        for contact in &contacts {
+        for contact in self.contacts.iter() {
             let contact_time = contact.time_of_impact - accumulated_time;
 
             // position update
@@ -460,7 +348,7 @@ impl PhysicsScene {
                 body.update(contact_time)
             }
 
-            self.resolve_contact(contact);
+            resolve_contact(&mut self.bodies, contact);
             accumulated_time += contact_time;
         }
 
@@ -472,23 +360,7 @@ impl PhysicsScene {
             }
         }
 
-        for (index, body) in self.bodies.iter().enumerate() {
-            if !body.has_infinite_mass() {
-                println!(
-                    "step: {} dt: {} index: {} pos: {} rot: {} lin: {} ang: {}",
-                    self.step_num,
-                    delta_seconds,
-                    index,
-                    body.position,
-                    body.orientation,
-                    body.linear_velocity,
-                    body.angular_velocity
-                );
-            }
-        }
-
-        // move contacts ownership back to self to avoid re-allocating next update
-        self.contacts.replace(contacts);
+        // self.bodies.print_bodies(self.step_num, delta_seconds);
     }
 
     pub fn get_body(&self, handle: BodyHandle) -> &Body {

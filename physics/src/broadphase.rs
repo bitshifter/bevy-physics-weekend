@@ -1,4 +1,4 @@
-use crate::scene::{BodyArena, BodyHandle};
+use crate::body::{BodyArena, BodyHandle};
 use glam::Vec3;
 
 #[derive(Copy, Clone, Debug)]
