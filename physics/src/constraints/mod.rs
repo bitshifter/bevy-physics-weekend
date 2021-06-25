@@ -48,7 +48,7 @@ impl ConstraintArena {
 }
 
 pub trait ConstraintTrait: Send + Sync {
-    fn pre_solve(&mut self, config: &ConstraintConfig, bodies: &BodyArena, dt_sec: f32);
+    fn pre_solve(&mut self, config: &ConstraintConfig, bodies: &mut BodyArena, dt_sec: f32);
     fn solve(&mut self, config: &ConstraintConfig, bodies: &mut BodyArena);
     fn post_solve(&mut self) {}
 }
@@ -71,7 +71,7 @@ pub struct Constraint {
 }
 
 impl Constraint {
-    pub fn pre_solve(&mut self, bodies: &BodyArena, dt_sec: f32) {
+    pub fn pre_solve(&mut self, bodies: &mut BodyArena, dt_sec: f32) {
         self.constraint.pre_solve(&self.config, bodies, dt_sec);
     }
     pub fn solve(&mut self, bodies: &mut BodyArena) {

@@ -1,27 +1,32 @@
 use super::{ConstraintConfig, ConstraintTrait};
 use crate::{
     body::BodyArena,
-    math::{lcp_gauss_seidel, MatMN, MatN},
+    math::{lcp_gauss_seidel, MatMN, MatN, VecN},
 };
 
 pub struct ConstraintDistance {
     jacobian: MatMN<1, 12>,
+    cached_lambda: VecN<1>,
 }
 
 impl ConstraintDistance {
     pub fn new() -> Self {
         ConstraintDistance {
             jacobian: MatMN::zero(),
+            cached_lambda: VecN::zero(),
         }
     }
 }
 
 impl ConstraintTrait for ConstraintDistance {
-    fn pre_solve(&mut self, config: &ConstraintConfig, bodies: &BodyArena, _dt_sec: f32) {
+    fn pre_solve(&mut self, config: &ConstraintConfig, bodies: &mut BodyArena, _dt_sec: f32) {
         let body_a = bodies.get_body(config.handle_a);
         let body_b = bodies.get_body(config.handle_b);
 
+        // get the world space position of the hinge from body_a's orientation
         let world_anchor_a = body_a.local_to_world(config.anchor_a);
+
+        // get the world space position of the hinge from body_b's orientation
         let world_anchor_b = body_b.local_to_world(config.anchor_b);
 
         let ra = world_anchor_a - body_a.centre_of_mass_world();
@@ -56,6 +61,10 @@ impl ConstraintTrait for ConstraintDistance {
             self.jacobian.rows[0][10] = j4.y;
             self.jacobian.rows[0][11] = j4.z;
         }
+
+        // apply warm starting from the last frame
+        let impulses = self.jacobian.transpose() * self.cached_lambda;
+        config.apply_impulses(bodies, &impulses);
     }
 
     fn solve(&mut self, config: &ConstraintConfig, bodies: &mut BodyArena) {
@@ -73,5 +82,8 @@ impl ConstraintTrait for ConstraintDistance {
         // apply the impulses
         let impulses = jacobian_transpose * lambda_n;
         config.apply_impulses(bodies, &impulses);
+
+        // accumulate the impulses for warm starting
+        self.cached_lambda += lambda_n;
     }
 }

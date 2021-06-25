@@ -6,7 +6,7 @@ mod vecn;
 // pub use matn::MatN;
 // pub use vecn::VecN;
 
-use core::ops::{Deref, DerefMut, Mul};
+use core::ops::{AddAssign, Deref, DerefMut, Mul};
 
 fn dot<const N: usize>(a: &[f32; N], b: &[f32; N]) -> f32 {
     a.iter()
@@ -85,6 +85,15 @@ impl<const N: usize> Mul<f32> for VecN<N> {
             tmp[n] *= rhs;
         }
         tmp
+    }
+}
+
+impl<const N: usize> AddAssign<VecN<N>> for VecN<N> {
+    #[inline]
+    fn add_assign(&mut self, rhs: VecN<N>) {
+        for n in 0..N {
+            self[n] += rhs[n];
+        }
     }
 }
 

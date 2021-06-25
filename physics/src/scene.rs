@@ -336,7 +336,7 @@ impl PhysicsScene {
         self.contacts.sort();
 
         // solve constraints
-        const MAX_ITERS: u32 = 50;
+        const MAX_ITERS: u32 = 5;
         self.constraints.solve(&mut self.bodies, delta_seconds, MAX_ITERS);
 
         // apply ballistic impulses
