@@ -7,6 +7,7 @@ use crate::{
 pub struct ConstraintDistance {
     jacobian: MatMN<1, 12>,
     cached_lambda: VecN<1>,
+    baumgarte: f32,
 }
 
 impl ConstraintDistance {
@@ -14,12 +15,13 @@ impl ConstraintDistance {
         ConstraintDistance {
             jacobian: MatMN::zero(),
             cached_lambda: VecN::zero(),
+            baumgarte: 0.0,
         }
     }
 }
 
 impl ConstraintTrait for ConstraintDistance {
-    fn pre_solve(&mut self, config: &ConstraintConfig, bodies: &mut BodyArena, _dt_sec: f32) {
+    fn pre_solve(&mut self, config: &ConstraintConfig, bodies: &mut BodyArena, dt_sec: f32) {
         let body_a = bodies.get_body(config.handle_a);
         let body_b = bodies.get_body(config.handle_b);
 
@@ -29,6 +31,7 @@ impl ConstraintTrait for ConstraintDistance {
         // get the world space position of the hinge from body_b's orientation
         let world_anchor_b = body_b.local_to_world(config.anchor_b);
 
+        let r = world_anchor_b - world_anchor_a;
         let ra = world_anchor_a - body_a.centre_of_mass_world();
         let rb = world_anchor_b - body_b.centre_of_mass_world();
         let a = world_anchor_a;
@@ -65,6 +68,12 @@ impl ConstraintTrait for ConstraintDistance {
         // apply warm starting from the last frame
         let impulses = self.jacobian.transpose() * self.cached_lambda;
         config.apply_impulses(bodies, &impulses);
+
+        // calculate the baumgarte stabilization
+        let mut c = r.dot(r);
+        c = f32::max(0.0, c - 0.01);
+        let beta = 0.05;
+        self.baumgarte = (beta / dt_sec) * c;
     }
 
     fn solve(&mut self, config: &ConstraintConfig, bodies: &mut BodyArena) {
@@ -74,7 +83,8 @@ impl ConstraintTrait for ConstraintDistance {
         let q_dt = config.get_velocities(bodies);
         let inv_mass_matrix = config.get_inverse_mass_matrix(bodies);
         let j_w_jt = self.jacobian * inv_mass_matrix * jacobian_transpose;
-        let rhs = self.jacobian * q_dt * -1.0;
+        let mut rhs = self.jacobian * q_dt * -1.0;
+        rhs[0] -= self.baumgarte;
 
         // solve for the Lagrange multipliers
         let lambda_n = lcp_gauss_seidel(&MatN::from(j_w_jt), &rhs);

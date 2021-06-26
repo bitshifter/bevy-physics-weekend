@@ -1,4 +1,6 @@
 mod constraint_distance;
+// TODO: below is WIP
+//mod constraint_penetration;
 
 use crate::{
     body::{BodyArena, BodyHandle},
