@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::shapes::{Shape, ShapeBox, ShapeConvex};
 use glam::{const_vec3, Quat, Vec3};
 use std::{
@@ -66,6 +67,10 @@ pub fn make_box(size: Vec3) -> Shape {
 
 pub fn make_box_small() -> Shape {
     make_box(Vec3::splat(0.5))
+}
+
+pub fn make_box_unit() -> Shape {
+    make_box(Vec3::splat(2.0))
 }
 
 pub fn make_box_ground() -> Shape {

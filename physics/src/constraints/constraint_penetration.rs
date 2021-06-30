@@ -14,11 +14,11 @@ pub struct ConstraintPenetration {
 }
 
 impl ConstraintPenetration {
-    pub fn new() -> Self {
+    pub fn new(normal: Vec3) -> Self {
         Self {
             jacobian: MatMN::zero(),
             cached_lambda: VecN::zero(),
-            normal: Vec3::ZERO,
+            normal,
             baumgarte: 0.0,
             friction: 0.0,
         }
@@ -138,7 +138,7 @@ impl ConstraintTrait for ConstraintPenetration {
 
         // apply warm starting from last frame
         let impulses = self.jacobian.transpose() * self.cached_lambda;
-        config.apply_impulses(bodies, &impulses);
+        config.apply_impulses(bodies, impulses);
 
         // calculate the baumgarte stabilization
         let mut c = (b - a).dot(normal);
@@ -147,4 +147,56 @@ impl ConstraintTrait for ConstraintPenetration {
         self.baumgarte = beta * c / dt_sec;
     }
 
+    fn solve(&mut self, config: &ConstraintConfig, bodies: &mut BodyArena) {
+        let jacobian_transpose = self.jacobian.transpose();
+
+        // build the system of equations
+        let q_dt = config.get_velocities(bodies);
+        let inv_mass_matrix = config.get_inverse_mass_matrix(bodies);
+        let j_w_jt = self.jacobian * inv_mass_matrix * jacobian_transpose;
+        let mut rhs = self.jacobian * q_dt * -1.0;
+        rhs[0] -= self.baumgarte;
+
+        // solve for the Lagrange multipliers
+        let mut lambda_n = lcp_gauss_seidel(&MatN::from(j_w_jt), &rhs);
+
+        // accumulate the impulses and clamp within the constraint limits
+        let old_lambda = self.cached_lambda;
+        self.cached_lambda += lambda_n;
+        let lambda_limit = 0.0;
+        if self.cached_lambda[0] < lambda_limit {
+            self.cached_lambda[0] = lambda_limit;
+        }
+
+        if self.friction > 0.0 {
+            let body_a = bodies.get_body(config.handle_a);
+            let body_b = bodies.get_body(config.handle_b);
+            let umg = self.friction * 10.0 * 1.0 / (body_a.inv_mass + body_b.inv_mass);
+            let normal_force = (lambda_n[0] * self.friction).abs();
+            let max_force = if umg > normal_force {
+                umg
+            } else {
+                normal_force
+            };
+
+            if self.cached_lambda[1] > max_force {
+                self.cached_lambda[1] = max_force;
+            }
+            if self.cached_lambda[1] < -max_force {
+                self.cached_lambda[1] = -max_force;
+            }
+
+            if self.cached_lambda[2] > max_force {
+                self.cached_lambda[2] = max_force;
+            }
+            if self.cached_lambda[2] < -max_force {
+                self.cached_lambda[2] = -max_force;
+            }
+        }
+        lambda_n = self.cached_lambda - old_lambda;
+
+        // apply the impulses
+        let impulses = jacobian_transpose * lambda_n;
+        config.apply_impulses(bodies, impulses);
+    }
 }

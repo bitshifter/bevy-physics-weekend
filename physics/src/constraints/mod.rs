@@ -1,35 +1,63 @@
+#![allow(dead_code)]
 mod constraint_distance;
-// TODO: below is WIP
-//mod constraint_penetration;
+mod constraint_penetration;
 
 use crate::{
     body::{BodyArena, BodyHandle},
     math::{MatMN, VecN},
 };
 use constraint_distance::ConstraintDistance;
+use constraint_penetration::ConstraintPenetration;
 use glam::Vec3;
+
+// TODO: rethink this
+pub struct Constraint {
+    constraint: Box<dyn ConstraintTrait>,
+    config: ConstraintConfig,
+}
+
+impl Constraint {
+    pub fn pre_solve(&mut self, bodies: &mut BodyArena, dt_sec: f32) {
+        self.constraint.pre_solve(&self.config, bodies, dt_sec);
+    }
+    pub fn solve(&mut self, bodies: &mut BodyArena) {
+        self.constraint.solve(&self.config, bodies);
+    }
+    pub fn post_solve(&mut self) {
+        self.constraint.post_solve();
+    }
+}
 
 pub struct ConstraintArena {
     constraints: Vec<Constraint>,
+    penetration_constraints: Vec<Constraint>,
 }
 
 impl ConstraintArena {
     pub fn new() -> Self {
         ConstraintArena {
             constraints: Vec::new(),
+            penetration_constraints: Vec::new(),
         }
     }
 
     pub fn clear(&mut self) {
         self.constraints.clear();
+        self.penetration_constraints.clear();
     }
 
     pub fn add_distance_constraint(&mut self, config: ConstraintConfig) {
-        let constraint = Constraint {
+        self.constraints.push(Constraint {
             constraint: Box::new(ConstraintDistance::new()),
             config,
-        };
-        self.constraints.push(constraint);
+        });
+    }
+
+    pub fn add_penetration_constraint(&mut self, config: ConstraintConfig, normal: Vec3) {
+        self.penetration_constraints.push(Constraint {
+            constraint: Box::new(ConstraintPenetration::new(normal)),
+            config,
+        });
     }
 
     pub fn solve(&mut self, bodies: &mut BodyArena, dt_sec: f32, max_iters: u32) {
@@ -37,8 +65,15 @@ impl ConstraintArena {
             constraint.pre_solve(bodies, dt_sec);
         }
 
+        for constraint in &mut self.penetration_constraints {
+            constraint.pre_solve(bodies, dt_sec);
+        }
+
         for _ in 0..max_iters {
             for constraint in &mut self.constraints {
+                constraint.solve(bodies);
+            }
+            for constraint in &mut self.penetration_constraints {
                 constraint.solve(bodies);
             }
         }
@@ -46,6 +81,11 @@ impl ConstraintArena {
         for constraint in &mut self.constraints {
             constraint.post_solve();
         }
+        for constraint in &mut self.penetration_constraints {
+            constraint.post_solve();
+        }
+
+        self.penetration_constraints.clear();
     }
 }
 
@@ -65,23 +105,6 @@ pub struct ConstraintConfig {
 
     pub anchor_b: Vec3, // the anchor location in body_b's space
     pub axis_b: Vec3,   // the axis direction in body_b's space
-}
-
-pub struct Constraint {
-    constraint: Box<dyn ConstraintTrait>,
-    config: ConstraintConfig,
-}
-
-impl Constraint {
-    pub fn pre_solve(&mut self, bodies: &mut BodyArena, dt_sec: f32) {
-        self.constraint.pre_solve(&self.config, bodies, dt_sec);
-    }
-    pub fn solve(&mut self, bodies: &mut BodyArena) {
-        self.constraint.solve(&self.config, bodies);
-    }
-    pub fn post_solve(&mut self) {
-        self.constraint.post_solve();
-    }
 }
 
 impl ConstraintConfig {
@@ -150,7 +173,7 @@ impl ConstraintConfig {
         q_dt
     }
 
-    fn apply_impulses(&self, bodies: &mut BodyArena, impulses: &VecN<12>) {
+    fn apply_impulses(&self, bodies: &mut BodyArena, impulses: VecN<12>) {
         {
             let force_internal_a = Vec3::from_slice(&impulses[0..]);
             let torque_internal_a = Vec3::from_slice(&impulses[3..]);

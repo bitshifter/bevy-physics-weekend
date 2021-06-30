@@ -249,6 +249,7 @@ impl PhysicsScene {
         });
         */
 
+        /*
         let box_small = make_box_small();
         let mut handle_a = self.bodies.add(Body {
             position: Vec3::new(0.0, NUM_JOINTS as f32 + 3.0, 5.0),
@@ -287,6 +288,35 @@ impl PhysicsScene {
             });
 
             handle_a = handle_b;
+        }
+        */
+
+        // Stack of boxes
+        {
+            let x = 0;
+            let z = 0;
+            const STACK_HEIGHT: usize = 5;
+            for y in 0..STACK_HEIGHT {
+                let offset = if y & 1 == 0 { 0.0 } else { 0.15 };
+                let xx = x as f32 + offset;
+                let zz = z as f32 + offset;
+                let delta = 0.04;
+                let scale_height = 2.0 + delta;
+                let delta_height = 1.0 + delta;
+                self.bodies.add(Body {
+                    position: Vec3::new(
+                        xx * scale_height,
+                        delta_height + y as f32 * scale_height,
+                        zz * scale_height,
+                    ),
+                    orientation: Quat::IDENTITY,
+                    inv_mass: 1.0,
+                    elasticity: 0.5,
+                    friction: 0.5,
+                    shape: make_box_unit(),
+                    ..Body::default()
+                });
+            }
         }
 
         add_standard_sandbox(&mut self.bodies);
@@ -328,7 +358,26 @@ impl PhysicsScene {
             // check for intersection
             if let Some(contact) = intersect_dynamic(pair.a, body_a, pair.b, body_b, delta_seconds)
             {
-                self.contacts.push(contact)
+                if contact.time_of_impact == 0.0 {
+                    // static contact
+                    let normal = (self.bodies.get_body(contact.handle_a).orientation.inverse()
+                        * -contact.normal)
+                        .normalize();
+                    self.constraints.add_penetration_constraint(
+                        ConstraintConfig {
+                            handle_a: contact.handle_a,
+                            handle_b: contact.handle_b,
+                            anchor_a: contact.local_point_a,
+                            anchor_b: contact.local_point_b,
+                            axis_a: Vec3::ZERO,
+                            axis_b: Vec3::ZERO,
+                        },
+                        normal,
+                    );
+                } else {
+                    // ballistic contact
+                    self.contacts.push(contact)
+                }
             }
         }
 
@@ -337,7 +386,8 @@ impl PhysicsScene {
 
         // solve constraints
         const MAX_ITERS: u32 = 5;
-        self.constraints.solve(&mut self.bodies, delta_seconds, MAX_ITERS);
+        self.constraints
+            .solve(&mut self.bodies, delta_seconds, MAX_ITERS);
 
         // apply ballistic impulses
         let mut accumulated_time = 0.0;

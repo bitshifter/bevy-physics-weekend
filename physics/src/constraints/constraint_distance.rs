@@ -67,7 +67,7 @@ impl ConstraintTrait for ConstraintDistance {
 
         // apply warm starting from the last frame
         let impulses = self.jacobian.transpose() * self.cached_lambda;
-        config.apply_impulses(bodies, &impulses);
+        config.apply_impulses(bodies, impulses);
 
         // calculate the baumgarte stabilization
         let mut c = r.dot(r);
@@ -91,7 +91,7 @@ impl ConstraintTrait for ConstraintDistance {
 
         // apply the impulses
         let impulses = jacobian_transpose * lambda_n;
-        config.apply_impulses(bodies, &impulses);
+        config.apply_impulses(bodies, impulses);
 
         // accumulate the impulses for warm starting
         self.cached_lambda += lambda_n;

@@ -12,9 +12,6 @@ So far the first and second books have been implemented.
 I'm using a fork of Bevy 0.5.0 that is using the latest version of glam from
 github.
 
-One difference between this implemntation and the book is `glam` uses column
-vectors and column major matrices whereas the book uses row-major matrices.
-
 ## Simulation controls
 
 * T - toggles pausing the simulation
@@ -29,6 +26,28 @@ The [Bevy Flycam] plugin is used for camera movement.
 * Space - move up
 * Left shift - move down
 * Escape - toggle mouse cursor lock
+
+## Differences from the book
+
+### Coordinate system
+
+The book uses Z up and Bevy uses Y up. I've used the Bevy Y up convention here.
+
+### Matrices
+
+The book uses row-major matrices whereas `glam` uses column vectors and column
+major matrices.
+
+### Architecture
+
+I've mostly tried to follow the code structure in the book, however some things
+don't translate so well to Rust so some organisation of code has changed.
+
+* `BodyHandle` is used instead of `Body*` pointers. The handle is currently
+  just wrapping an array index.
+* `Body` and `Constraint` structs are owned by `BodyArena` and
+  `ConstraintArena` instead of being owned by `PhysicsScene`. This makes
+  working with the borrow checker easier.
 
 ## License
 
