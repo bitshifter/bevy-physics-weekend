@@ -5,6 +5,7 @@ mod constraints;
 mod contact;
 mod gjk;
 mod intersect;
+mod manifold;
 mod math;
 pub mod scene;
 mod scene_shapes;

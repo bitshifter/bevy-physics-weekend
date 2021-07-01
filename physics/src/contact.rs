@@ -1,7 +1,7 @@
 use crate::body::BodyHandle;
 use glam::Vec3;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct Contact {
     pub world_point_a: Vec3,
     pub world_point_b: Vec3,
@@ -16,17 +16,12 @@ pub struct Contact {
     pub handle_b: BodyHandle,
 }
 
+#[derive(Clone, Debug, Default)]
 pub struct ContactArena {
     contacts: Vec<Contact>,
 }
 
 impl ContactArena {
-    pub fn new() -> Self {
-        Self {
-            contacts: Vec::new(),
-        }
-    }
-
     pub fn clear(&mut self) {
         self.contacts.clear();
     }

@@ -61,6 +61,12 @@ impl<const N: usize> VecN<N> {
     }
 }
 
+impl<const N: usize> Default for VecN<N> {
+    fn default() -> Self {
+        Self::zero()
+    }
+}
+
 impl<const N: usize> Deref for VecN<N> {
     type Target = [f32; N];
     #[inline]
@@ -177,6 +183,12 @@ impl<const N: usize> MatN<N> {
     }
 }
 
+impl<const N: usize> Default for MatN<N> {
+    fn default() -> Self {
+        Self::zero()
+    }
+}
+
 // impl<const N: usize> Mul<f32> for &MatN<N> {
 //     type Output = MatN<N>;
 //     fn mul(self, rhs: f32) -> MatN<N> {
@@ -217,6 +229,12 @@ impl<const M: usize, const N: usize> MatMN<M, N> {
             }
         }
         mat
+    }
+}
+
+impl<const M: usize, const N: usize> Default for MatMN<M, N> {
+    fn default() -> Self {
+        Self::zero()
     }
 }
 

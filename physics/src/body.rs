@@ -4,6 +4,13 @@ use glam::{Mat3, Quat, Vec3};
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct BodyHandle(pub u32);
 
+impl Default for BodyHandle {
+    // default to invalid value
+    fn default() -> Self {
+        Self(u32::MAX)
+    }
+}
+
 #[derive(Debug)]
 pub struct BodyArena {
     bodies: Vec<Body>,

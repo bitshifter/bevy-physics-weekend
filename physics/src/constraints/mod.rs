@@ -7,60 +7,46 @@ use crate::{
     math::{MatMN, VecN},
 };
 use constraint_distance::ConstraintDistance;
-use constraint_penetration::ConstraintPenetration;
+pub use constraint_penetration::ConstraintPenetration;
 use glam::Vec3;
 
-// TODO: rethink this
-pub struct Constraint {
-    constraint: Box<dyn ConstraintTrait>,
-    config: ConstraintConfig,
-}
-
-impl Constraint {
-    pub fn pre_solve(&mut self, bodies: &mut BodyArena, dt_sec: f32) {
-        self.constraint.pre_solve(&self.config, bodies, dt_sec);
-    }
-    pub fn solve(&mut self, bodies: &mut BodyArena) {
-        self.constraint.solve(&self.config, bodies);
-    }
-    pub fn post_solve(&mut self) {
-        self.constraint.post_solve();
-    }
+pub trait Constraint: Send + Sync {
+    fn pre_solve(&mut self, bodies: &mut BodyArena, dt_sec: f32);
+    fn solve(&mut self, bodies: &mut BodyArena);
+    fn post_solve(&mut self) {}
 }
 
 pub struct ConstraintArena {
-    constraints: Vec<Constraint>,
-    penetration_constraints: Vec<Constraint>,
+    constraints: Vec<Box<dyn Constraint>>,
+    penetration_constraints: Vec<ConstraintPenetration>,
 }
 
-impl ConstraintArena {
-    pub fn new() -> Self {
+impl Default for ConstraintArena {
+    fn default() -> Self {
         ConstraintArena {
             constraints: Vec::new(),
             penetration_constraints: Vec::new(),
         }
     }
+}
 
+impl ConstraintArena {
     pub fn clear(&mut self) {
         self.constraints.clear();
         self.penetration_constraints.clear();
     }
 
     pub fn add_distance_constraint(&mut self, config: ConstraintConfig) {
-        self.constraints.push(Constraint {
-            constraint: Box::new(ConstraintDistance::new()),
-            config,
-        });
+        self.constraints
+            .push(Box::new(ConstraintDistance::new(config)));
     }
 
     pub fn add_penetration_constraint(&mut self, config: ConstraintConfig, normal: Vec3) {
-        self.penetration_constraints.push(Constraint {
-            constraint: Box::new(ConstraintPenetration::new(normal)),
-            config,
-        });
+        self.penetration_constraints
+            .push(ConstraintPenetration::new(config, normal));
     }
 
-    pub fn solve(&mut self, bodies: &mut BodyArena, dt_sec: f32, max_iters: u32) {
+    pub fn pre_solve(&mut self, bodies: &mut BodyArena, dt_sec: f32) {
         for constraint in &mut self.constraints {
             constraint.pre_solve(bodies, dt_sec);
         }
@@ -68,16 +54,18 @@ impl ConstraintArena {
         for constraint in &mut self.penetration_constraints {
             constraint.pre_solve(bodies, dt_sec);
         }
+    }
 
-        for _ in 0..max_iters {
-            for constraint in &mut self.constraints {
-                constraint.solve(bodies);
-            }
-            for constraint in &mut self.penetration_constraints {
-                constraint.solve(bodies);
-            }
+    pub fn solve(&mut self, bodies: &mut BodyArena) {
+        for constraint in &mut self.constraints {
+            constraint.solve(bodies);
         }
+        for constraint in &mut self.penetration_constraints {
+            constraint.solve(bodies);
+        }
+    }
 
+    pub fn post_solve(&mut self) {
         for constraint in &mut self.constraints {
             constraint.post_solve();
         }
@@ -89,13 +77,7 @@ impl ConstraintArena {
     }
 }
 
-pub trait ConstraintTrait: Send + Sync {
-    fn pre_solve(&mut self, config: &ConstraintConfig, bodies: &mut BodyArena, dt_sec: f32);
-    fn solve(&mut self, config: &ConstraintConfig, bodies: &mut BodyArena);
-    fn post_solve(&mut self) {}
-}
-
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct ConstraintConfig {
     pub handle_a: BodyHandle,
     pub handle_b: BodyHandle,

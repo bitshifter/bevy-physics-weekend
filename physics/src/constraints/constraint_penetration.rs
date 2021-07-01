@@ -1,11 +1,13 @@
-use super::{ConstraintConfig, ConstraintTrait};
+use super::{Constraint, ConstraintConfig};
 use crate::{
     body::BodyArena,
     math::{lcp_gauss_seidel, MatMN, MatN, VecN},
 };
 use glam::Vec3;
 
+#[derive(Copy, Clone, Debug, Default)]
 pub struct ConstraintPenetration {
+    config: ConstraintConfig,
     jacobian: MatMN<3, 12>,
     cached_lambda: VecN<3>,
     normal: Vec3, // in body A's local space
@@ -14,8 +16,9 @@ pub struct ConstraintPenetration {
 }
 
 impl ConstraintPenetration {
-    pub fn new(normal: Vec3) -> Self {
+    pub fn new(config: ConstraintConfig, normal: Vec3) -> Self {
         Self {
+            config,
             jacobian: MatMN::zero(),
             cached_lambda: VecN::zero(),
             normal,
@@ -23,18 +26,26 @@ impl ConstraintPenetration {
             friction: 0.0,
         }
     }
+
+    pub fn normal(&self) -> Vec3 {
+        self.normal
+    }
+
+    pub fn clear_cached_lambda(&mut self) {
+        self.cached_lambda = VecN::zero();
+    }
 }
 
-impl ConstraintTrait for ConstraintPenetration {
-    fn pre_solve(&mut self, config: &ConstraintConfig, bodies: &mut BodyArena, dt_sec: f32) {
-        let body_a = bodies.get_body(config.handle_a);
-        let body_b = bodies.get_body(config.handle_b);
+impl Constraint for ConstraintPenetration {
+    fn pre_solve(&mut self, bodies: &mut BodyArena, dt_sec: f32) {
+        let body_a = bodies.get_body(self.config.handle_a);
+        let body_b = bodies.get_body(self.config.handle_b);
 
         // get the world space position of the hinge from body_a's orientation
-        let world_anchor_a = body_a.local_to_world(config.anchor_a);
+        let world_anchor_a = body_a.local_to_world(self.config.anchor_a);
 
         // get the world space position of the hinge from body_b's orientation
-        let world_anchor_b = body_b.local_to_world(config.anchor_b);
+        let world_anchor_b = body_b.local_to_world(self.config.anchor_b);
 
         let ra = world_anchor_a - body_a.centre_of_mass_world();
         let rb = world_anchor_b - body_b.centre_of_mass_world();
@@ -138,7 +149,7 @@ impl ConstraintTrait for ConstraintPenetration {
 
         // apply warm starting from last frame
         let impulses = self.jacobian.transpose() * self.cached_lambda;
-        config.apply_impulses(bodies, impulses);
+        self.config.apply_impulses(bodies, impulses);
 
         // calculate the baumgarte stabilization
         let mut c = (b - a).dot(normal);
@@ -147,12 +158,12 @@ impl ConstraintTrait for ConstraintPenetration {
         self.baumgarte = beta * c / dt_sec;
     }
 
-    fn solve(&mut self, config: &ConstraintConfig, bodies: &mut BodyArena) {
+    fn solve(&mut self, bodies: &mut BodyArena) {
         let jacobian_transpose = self.jacobian.transpose();
 
         // build the system of equations
-        let q_dt = config.get_velocities(bodies);
-        let inv_mass_matrix = config.get_inverse_mass_matrix(bodies);
+        let q_dt = self.config.get_velocities(bodies);
+        let inv_mass_matrix = self.config.get_inverse_mass_matrix(bodies);
         let j_w_jt = self.jacobian * inv_mass_matrix * jacobian_transpose;
         let mut rhs = self.jacobian * q_dt * -1.0;
         rhs[0] -= self.baumgarte;
@@ -169,8 +180,8 @@ impl ConstraintTrait for ConstraintPenetration {
         }
 
         if self.friction > 0.0 {
-            let body_a = bodies.get_body(config.handle_a);
-            let body_b = bodies.get_body(config.handle_b);
+            let body_a = bodies.get_body(self.config.handle_a);
+            let body_b = bodies.get_body(self.config.handle_b);
             let umg = self.friction * 10.0 * 1.0 / (body_a.inv_mass + body_b.inv_mass);
             let normal_force = (lambda_n[0] * self.friction).abs();
             let max_force = if umg > normal_force {
@@ -197,6 +208,6 @@ impl ConstraintTrait for ConstraintPenetration {
 
         // apply the impulses
         let impulses = jacobian_transpose * lambda_n;
-        config.apply_impulses(bodies, impulses);
+        self.config.apply_impulses(bodies, impulses);
     }
 }

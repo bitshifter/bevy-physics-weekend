@@ -1,9 +1,10 @@
 use crate::{
     body::{Body, BodyArena, BodyHandle},
     broadphase::broadphase,
-    constraints::{ConstraintArena, ConstraintConfig},
+    constraints::ConstraintArena,
     contact::{Contact, ContactArena},
     intersect::intersect_dynamic,
+    manifold::ManifoldCollector,
     scene_shapes::*,
 };
 use glam::{Quat, Vec3};
@@ -160,6 +161,7 @@ pub struct PhysicsScene {
     bodies: BodyArena,
     constraints: ConstraintArena,
     contacts: ContactArena,
+    manifolds: ManifoldCollector,
     step_num: u64,
     pub paused: bool,
 }
@@ -167,9 +169,10 @@ pub struct PhysicsScene {
 impl PhysicsScene {
     pub fn new() -> Self {
         let mut scene = PhysicsScene {
-            bodies: BodyArena::new(),
-            constraints: ConstraintArena::new(),
-            contacts: ContactArena::new(),
+            bodies: BodyArena::default(),
+            constraints: ConstraintArena::default(),
+            contacts: ContactArena::default(),
+            manifolds: ManifoldCollector::default(),
             step_num: 0,
             paused: true,
         };
@@ -182,6 +185,8 @@ impl PhysicsScene {
         // let num_bodies = 6 * 6 + 3 * 3;
         self.bodies.clear();
         self.constraints.clear();
+        self.contacts.clear();
+        self.manifolds.clear();
 
         /*
         let ball_shape = Shape::make_sphere(0.5);
@@ -330,6 +335,8 @@ impl PhysicsScene {
     pub fn update(&mut self, delta_seconds: f32) {
         self.step_num += 1;
 
+        self.manifolds.remove_expired(&self.bodies);
+
         // gravity impulse
         for body in self.bodies.iter_mut() {
             if !body.has_infinite_mass() {
@@ -360,20 +367,7 @@ impl PhysicsScene {
             {
                 if contact.time_of_impact == 0.0 {
                     // static contact
-                    let normal = (self.bodies.get_body(contact.handle_a).orientation.inverse()
-                        * -contact.normal)
-                        .normalize();
-                    self.constraints.add_penetration_constraint(
-                        ConstraintConfig {
-                            handle_a: contact.handle_a,
-                            handle_b: contact.handle_b,
-                            anchor_a: contact.local_point_a,
-                            anchor_b: contact.local_point_b,
-                            axis_a: Vec3::ZERO,
-                            axis_b: Vec3::ZERO,
-                        },
-                        normal,
-                    );
+                    self.manifolds.add_contact(&self.bodies, contact);
                 } else {
                     // ballistic contact
                     self.contacts.push(contact)
@@ -385,9 +379,17 @@ impl PhysicsScene {
         self.contacts.sort();
 
         // solve constraints
+        self.constraints.pre_solve(&mut self.bodies, delta_seconds);
+        self.manifolds.pre_solve(&mut self.bodies, delta_seconds);
+
         const MAX_ITERS: u32 = 5;
-        self.constraints
-            .solve(&mut self.bodies, delta_seconds, MAX_ITERS);
+        for _ in 0..MAX_ITERS {
+            self.constraints.solve(&mut self.bodies);
+            self.manifolds.solve(&mut self.bodies);
+        }
+
+        self.constraints.post_solve();
+        self.manifolds.post_solve();
 
         // apply ballistic impulses
         let mut accumulated_time = 0.0;

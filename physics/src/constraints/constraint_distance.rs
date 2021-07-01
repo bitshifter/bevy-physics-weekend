@@ -1,18 +1,20 @@
-use super::{ConstraintConfig, ConstraintTrait};
+use super::{Constraint, ConstraintConfig};
 use crate::{
     body::BodyArena,
     math::{lcp_gauss_seidel, MatMN, MatN, VecN},
 };
 
 pub struct ConstraintDistance {
+    config: ConstraintConfig,
     jacobian: MatMN<1, 12>,
     cached_lambda: VecN<1>,
     baumgarte: f32,
 }
 
 impl ConstraintDistance {
-    pub fn new() -> Self {
+    pub fn new(config: ConstraintConfig) -> Self {
         ConstraintDistance {
+            config,
             jacobian: MatMN::zero(),
             cached_lambda: VecN::zero(),
             baumgarte: 0.0,
@@ -20,16 +22,16 @@ impl ConstraintDistance {
     }
 }
 
-impl ConstraintTrait for ConstraintDistance {
-    fn pre_solve(&mut self, config: &ConstraintConfig, bodies: &mut BodyArena, dt_sec: f32) {
-        let body_a = bodies.get_body(config.handle_a);
-        let body_b = bodies.get_body(config.handle_b);
+impl Constraint for ConstraintDistance {
+    fn pre_solve(&mut self, bodies: &mut BodyArena, dt_sec: f32) {
+        let body_a = bodies.get_body(self.config.handle_a);
+        let body_b = bodies.get_body(self.config.handle_b);
 
         // get the world space position of the hinge from body_a's orientation
-        let world_anchor_a = body_a.local_to_world(config.anchor_a);
+        let world_anchor_a = body_a.local_to_world(self.config.anchor_a);
 
         // get the world space position of the hinge from body_b's orientation
-        let world_anchor_b = body_b.local_to_world(config.anchor_b);
+        let world_anchor_b = body_b.local_to_world(self.config.anchor_b);
 
         let r = world_anchor_b - world_anchor_a;
         let ra = world_anchor_a - body_a.centre_of_mass_world();
@@ -67,7 +69,7 @@ impl ConstraintTrait for ConstraintDistance {
 
         // apply warm starting from the last frame
         let impulses = self.jacobian.transpose() * self.cached_lambda;
-        config.apply_impulses(bodies, impulses);
+        self.config.apply_impulses(bodies, impulses);
 
         // calculate the baumgarte stabilization
         let mut c = r.dot(r);
@@ -76,12 +78,12 @@ impl ConstraintTrait for ConstraintDistance {
         self.baumgarte = (beta / dt_sec) * c;
     }
 
-    fn solve(&mut self, config: &ConstraintConfig, bodies: &mut BodyArena) {
+    fn solve(&mut self, bodies: &mut BodyArena) {
         let jacobian_transpose = self.jacobian.transpose();
 
         // build the system of equations
-        let q_dt = config.get_velocities(bodies);
-        let inv_mass_matrix = config.get_inverse_mass_matrix(bodies);
+        let q_dt = self.config.get_velocities(bodies);
+        let inv_mass_matrix = self.config.get_inverse_mass_matrix(bodies);
         let j_w_jt = self.jacobian * inv_mass_matrix * jacobian_transpose;
         let mut rhs = self.jacobian * q_dt * -1.0;
         rhs[0] -= self.baumgarte;
@@ -91,7 +93,7 @@ impl ConstraintTrait for ConstraintDistance {
 
         // apply the impulses
         let impulses = jacobian_transpose * lambda_n;
-        config.apply_impulses(bodies, impulses);
+        self.config.apply_impulses(bodies, impulses);
 
         // accumulate the impulses for warm starting
         self.cached_lambda += lambda_n;
