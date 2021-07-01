@@ -206,8 +206,10 @@ impl ManifoldCollector {
         // try to find the previously existing manifold for contacts between two bodies
         let mut found = None;
         for manifold in &mut self.manifolds {
+            #[allow(clippy::suspicious_operation_groupings)]
             let has_a =
                 manifold.handle_a == contact.handle_a || manifold.handle_b == contact.handle_a;
+            #[allow(clippy::suspicious_operation_groupings)]
             let has_b =
                 manifold.handle_a == contact.handle_b || manifold.handle_b == contact.handle_b;
             if has_a && has_b {

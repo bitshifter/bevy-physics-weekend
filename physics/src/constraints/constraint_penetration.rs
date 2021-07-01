@@ -49,9 +49,6 @@ impl Constraint for ConstraintPenetration {
 
         let ra = world_anchor_a - body_a.centre_of_mass_world();
         let rb = world_anchor_b - body_b.centre_of_mass_world();
-        let a = world_anchor_a;
-        let b = world_anchor_b;
-
         self.friction = body_a.friction * body_b.friction;
 
         // should be equivalent to Vec3::GetOrtho() from the book
@@ -152,7 +149,7 @@ impl Constraint for ConstraintPenetration {
         self.config.apply_impulses(bodies, impulses);
 
         // calculate the baumgarte stabilization
-        let mut c = (b - a).dot(normal);
+        let mut c = (world_anchor_b - world_anchor_a).dot(normal);
         c = f32::min(0.0, c + 0.02); // add slop
         let beta = 0.25;
         self.baumgarte = beta * c / dt_sec;
