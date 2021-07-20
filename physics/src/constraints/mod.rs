@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 mod constraint_distance;
+mod constraint_orientation;
 mod constraint_penetration;
 
 use crate::{
@@ -8,7 +9,27 @@ use crate::{
 };
 use constraint_distance::ConstraintDistance;
 pub use constraint_penetration::ConstraintPenetration;
-use glam::Vec3;
+use glam::{Mat4, Quat, Vec3, Vec4};
+
+pub fn quat_left(q: Quat) -> Mat4 {
+    // TODO: might need to be transposed
+    Mat4::from_cols(
+        Vec4::new(q.w, -q.x, -q.y, -q.z),
+        Vec4::new(q.x, q.w, -q.z, q.y),
+        Vec4::new(q.y, q.z, q.w, -q.x),
+        Vec4::new(q.z, -q.y, q.x, q.w),
+    )
+}
+
+pub fn quat_right(q: Quat) -> Mat4 {
+    // TODO: might need to be transposed
+    Mat4::from_cols(
+        Vec4::new(q.w, -q.x, -q.y, -q.z),
+        Vec4::new(q.x, q.w, q.z, -q.y),
+        Vec4::new(q.y, -q.z, q.w, q.x),
+        Vec4::new(q.z, q.y, -q.x, q.w),
+    )
+}
 
 pub trait Constraint: Send + Sync {
     fn pre_solve(&mut self, bodies: &mut BodyArena, dt_sec: f32);
