@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 mod constraint_distance;
+mod constraint_hinge_quat;
 mod constraint_orientation;
 mod constraint_penetration;
 
