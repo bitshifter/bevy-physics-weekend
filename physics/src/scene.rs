@@ -1,7 +1,7 @@
 use crate::{
     body::{Body, BodyArena, BodyHandle},
     broadphase::broadphase,
-    constraints::ConstraintArena,
+    constraints::{ConstraintArena, ConstraintConfig},
     contact::{Contact, ContactArena},
     intersect::intersect_dynamic,
     manifold::ManifoldCollector,
@@ -9,6 +9,183 @@ use crate::{
 };
 use glam::{Quat, Vec3};
 
+#[allow(dead_code)]
+fn add_dynamic_balls(bodies: &mut BodyArena) {
+    let ball_shape = make_sphere(0.5);
+    for x in 0..6 {
+        let radius = 0.5;
+        let xx = ((x as f32) - 1.0) * radius * 1.5;
+        for z in 0..6 {
+            let zz = ((z as f32) - 1.0) * radius * 1.5;
+            bodies.add(Body {
+                position: Vec3::new(xx, 10.0, zz),
+                orientation: Quat::IDENTITY,
+                linear_velocity: Vec3::ZERO,
+                angular_velocity: Vec3::ZERO,
+                inv_mass: 1.0,
+                elasticity: 0.5,
+                friction: 0.5,
+                shape: ball_shape.clone(),
+            });
+        }
+    }
+}
+
+#[allow(dead_code)]
+fn add_box_dist_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
+    let handle_a = bodies.add(Body {
+        position: Vec3::new(0.0, 5.0, 0.0),
+        orientation: Quat::IDENTITY,
+        linear_velocity: Vec3::ZERO,
+        angular_velocity: Vec3::ZERO,
+        inv_mass: 0.0,
+        elasticity: 1.0,
+        friction: 0.5,
+        shape: make_box_small(),
+    });
+
+    let handle_b = bodies.add(Body {
+        position: Vec3::new(1.0, 5.0, 0.0),
+        orientation: Quat::IDENTITY,
+        linear_velocity: Vec3::ZERO,
+        angular_velocity: Vec3::ZERO,
+        inv_mass: 1.0,
+        elasticity: 1.0,
+        friction: 0.5,
+        shape: make_box_small(),
+    });
+
+    let body_a = bodies.get_body(handle_a);
+    let body_b = bodies.get_body(handle_b);
+    let joint_world_space_anchor = body_a.position;
+
+    let anchor_a = body_a.world_to_local(joint_world_space_anchor);
+    let anchor_b = body_b.world_to_local(joint_world_space_anchor);
+
+    constraints.add_distance_constraint(ConstraintConfig {
+        handle_a,
+        handle_b,
+        anchor_a,
+        axis_a: Vec3::ZERO,
+        anchor_b,
+        axis_b: Vec3::ZERO,
+    });
+}
+
+#[allow(dead_code)]
+fn add_box_chain(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
+    let box_small = make_box_small();
+    let mut handle_a = bodies.add(Body {
+        position: Vec3::new(0.0, NUM_JOINTS as f32 + 3.0, 5.0),
+        orientation: Quat::IDENTITY,
+        inv_mass: 0.0,
+        elasticity: 1.0,
+        shape: box_small.clone(),
+        ..Body::default()
+    });
+
+    const NUM_JOINTS: usize = 5;
+    for _ in 0..NUM_JOINTS {
+        let body_a = bodies.get_body(handle_a);
+        let joint_world_space_anchor = body_a.position;
+
+        let anchor_a = body_a.world_to_local(joint_world_space_anchor);
+
+        let body_b = Body {
+            position: body_a.position + Vec3::X,
+            inv_mass: 1.0,
+            elasticity: 1.0,
+            shape: box_small.clone(),
+            ..Body::default()
+        };
+
+        let anchor_b = body_b.world_to_local(joint_world_space_anchor);
+        let handle_b = bodies.add(body_b);
+
+        constraints.add_distance_constraint(ConstraintConfig {
+            handle_a,
+            handle_b,
+            anchor_a,
+            anchor_b,
+            axis_a: Vec3::ZERO,
+            axis_b: Vec3::ZERO,
+        });
+
+        handle_a = handle_b;
+    }
+}
+
+#[allow(dead_code)]
+fn add_box_stack(bodies: &mut BodyArena) {
+    let x = 0;
+    let z = 0;
+    const STACK_HEIGHT: usize = 5;
+    for y in 0..STACK_HEIGHT {
+        let offset = if y & 1 == 0 { 0.0 } else { 0.15 };
+        let xx = x as f32 + offset;
+        let zz = z as f32 + offset;
+        let delta = 0.04;
+        let scale_height = 2.0 + delta;
+        let delta_height = 1.0 + delta;
+        bodies.add(Body {
+            position: Vec3::new(
+                xx * scale_height,
+                delta_height + y as f32 * scale_height,
+                zz * scale_height,
+            ),
+            orientation: Quat::IDENTITY,
+            inv_mass: 1.0,
+            elasticity: 0.5,
+            friction: 0.5,
+            shape: make_box_unit(),
+            ..Body::default()
+        });
+    }
+}
+
+#[allow(dead_code)]
+fn add_hinge_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
+    let handle_a = bodies.add(Body {
+        position: Vec3::new(-2.0, 6.0, -5.0),
+        orientation: Quat::from_axis_angle(Vec3::ONE.normalize(), std::f32::consts::PI * 0.25),
+        inv_mass: 0.0,
+        elasticity: 0.9,
+        friction: 0.5,
+        shape: make_box_small(),
+        ..Body::default()
+    });
+
+    let handle_b = bodies.add(Body {
+        position: Vec3::new(-2.0, 5.0, -5.0),
+        orientation: Quat::from_axis_angle(Vec3::ONE.normalize(), std::f32::consts::PI * 0.25),
+        inv_mass: 1.0,
+        elasticity: 1.0,
+        friction: 0.5,
+        shape: make_box_small(),
+        ..Body::default()
+    });
+
+    let body_a = bodies.get_body(handle_a);
+    let body_b = bodies.get_body(handle_b);
+
+    let joint_world_space_anchor = body_a.position;
+
+    let relative_orientation = body_a.orientation.inverse() * body_b.orientation;
+
+    constraints.add_hinge_constraint(
+        ConstraintConfig {
+            handle_a,
+            handle_b,
+            anchor_a: body_a.world_to_local(joint_world_space_anchor),
+            anchor_b: body_b.world_to_local(joint_world_space_anchor),
+            axis_a: body_a.orientation.inverse() * Vec3::X,
+            axis_b: Vec3::ZERO,
+        },
+        relative_orientation,
+    );
+}
+
+#[allow(dead_code)]
 fn add_standard_sandbox(bodies: &mut BodyArena) {
     let wall_color = Vec3::splat(0.5);
 
@@ -188,141 +365,15 @@ impl PhysicsScene {
         self.contacts.clear();
         self.manifolds.clear();
 
-        /*
-        let ball_shape = Shape::make_sphere(0.5);
+        // add_dynamic_balls(&mut self.bodies);
 
-        // dynamic bodies
-        for x in 0..6 {
-            let radius = 0.5;
-            let xx = ((x as f32) - 1.0) * radius * 1.5;
-            for z in 0..6 {
-                let zz = ((z as f32) - 1.0) * radius * 1.5;
-                self.bodies.push(Body {
-                    position: Vec3::new(xx, 10.0, zz),
-                    orientation: Quat::IDENTITY,
-                    linear_velocity: Vec3::ZERO,
-                    angular_velocity: Vec3::ZERO,
-                    inv_mass: 1.0,
-                    elasticity: 0.5,
-                    friction: 0.5,
-                    shape: ball_shape.clone(),
-                });
-                self.colors.push(Vec3::new(0.8, 0.7, 0.6));
-                // break; // HACK
-            }
-            // break; // HACK
-        }
-        */
+        // add_box_dist_constraint(&mut self.bodies, &mut self.constraints);
 
-        /*
-        let handle_a = self.bodies.add(Body {
-            position: Vec3::new(0.0, 5.0, 0.0),
-            orientation: Quat::IDENTITY,
-            linear_velocity: Vec3::ZERO,
-            angular_velocity: Vec3::ZERO,
-            inv_mass: 0.0,
-            elasticity: 1.0,
-            friction: 0.5,
-            shape: make_box_small(),
-        });
+        // add_box_chain(&mut self.bodies, &mut self.constraints);
 
-        let handle_b = self.bodies.add(Body {
-            position: Vec3::new(1.0, 5.0, 0.0),
-            orientation: Quat::IDENTITY,
-            linear_velocity: Vec3::ZERO,
-            angular_velocity: Vec3::ZERO,
-            inv_mass: 1.0,
-            elasticity: 1.0,
-            friction: 0.5,
-            shape: make_box_small(),
-        });
+        // add_box_stack(&mut self.bodies);
 
-        let body_a = self.bodies.get_body(handle_a);
-        let body_b = self.bodies.get_body(handle_b);
-        let joint_world_space_anchor = body_a.position;
-
-        let anchor_a = body_a.world_to_local(joint_world_space_anchor);
-        let anchor_b = body_b.world_to_local(joint_world_space_anchor);
-
-        self.constraints.add_distance_constraint(ConstraintConfig {
-            handle_a,
-            handle_b,
-            anchor_a,
-            axis_a: Vec3::ZERO,
-            anchor_b,
-            axis_b: Vec3::ZERO,
-        });
-        */
-
-        /*
-        let box_small = make_box_small();
-        let mut handle_a = self.bodies.add(Body {
-            position: Vec3::new(0.0, NUM_JOINTS as f32 + 3.0, 5.0),
-            orientation: Quat::IDENTITY,
-            inv_mass: 0.0,
-            elasticity: 1.0,
-            shape: box_small.clone(),
-            ..Body::default()
-        });
-
-        const NUM_JOINTS: usize = 5;
-        for _ in 0..NUM_JOINTS {
-            let body_a = self.bodies.get_body(handle_a);
-            let joint_world_space_anchor = body_a.position;
-
-            let anchor_a = body_a.world_to_local(joint_world_space_anchor);
-
-            let body_b = Body {
-                position: body_a.position + Vec3::X,
-                inv_mass: 1.0,
-                elasticity: 1.0,
-                shape: box_small.clone(),
-                ..Body::default()
-            };
-
-            let anchor_b = body_b.world_to_local(joint_world_space_anchor);
-            let handle_b = self.bodies.add(body_b);
-
-            self.constraints.add_distance_constraint(ConstraintConfig {
-                handle_a,
-                handle_b,
-                anchor_a,
-                anchor_b,
-                axis_a: Vec3::ZERO,
-                axis_b: Vec3::ZERO,
-            });
-
-            handle_a = handle_b;
-        }
-        */
-
-        // Stack of boxes
-        {
-            let x = 0;
-            let z = 0;
-            const STACK_HEIGHT: usize = 5;
-            for y in 0..STACK_HEIGHT {
-                let offset = if y & 1 == 0 { 0.0 } else { 0.15 };
-                let xx = x as f32 + offset;
-                let zz = z as f32 + offset;
-                let delta = 0.04;
-                let scale_height = 2.0 + delta;
-                let delta_height = 1.0 + delta;
-                self.bodies.add(Body {
-                    position: Vec3::new(
-                        xx * scale_height,
-                        delta_height + y as f32 * scale_height,
-                        zz * scale_height,
-                    ),
-                    orientation: Quat::IDENTITY,
-                    inv_mass: 1.0,
-                    elasticity: 0.5,
-                    friction: 0.5,
-                    shape: make_box_unit(),
-                    ..Body::default()
-                });
-            }
-        }
+        add_hinge_constraint(&mut self.bodies, &mut self.constraints);
 
         add_standard_sandbox(&mut self.bodies);
 

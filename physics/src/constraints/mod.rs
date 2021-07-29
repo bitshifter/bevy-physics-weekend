@@ -9,6 +9,7 @@ use crate::{
     math::{MatMN, VecN},
 };
 use constraint_distance::ConstraintDistance;
+use constraint_hinge_quat::ConstraintHingeQuatLimited;
 pub use constraint_penetration::ConstraintPenetration;
 use glam::{Mat4, Quat, Vec3, Vec4};
 
@@ -58,6 +59,14 @@ impl ConstraintArena {
     pub fn add_distance_constraint(&mut self, config: ConstraintConfig) {
         self.constraints
             .push(Box::new(ConstraintDistance::new(config)));
+    }
+
+    pub fn add_hinge_constraint(&mut self, config: ConstraintConfig, relative_orientation: Quat) {
+        self.constraints
+            .push(Box::new(ConstraintHingeQuatLimited::new(
+                config,
+                relative_orientation,
+            )))
     }
 
     pub fn pre_solve(&mut self, bodies: &mut BodyArena, dt_sec: f32) {
