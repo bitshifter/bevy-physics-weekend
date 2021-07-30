@@ -50,7 +50,12 @@ pub fn make_sphere(radius: f32) -> Shape {
 }
 
 #[allow(dead_code)]
-pub fn make_box(size: Vec3) -> Shape {
+pub fn make_box_from_points(points: &[Vec3; 8]) -> Shape {
+    Shape::make_box(Arc::new(ShapeBox::new(points)))
+}
+
+#[allow(dead_code)]
+pub fn make_cube(size: Vec3) -> Shape {
     let half = size * 0.5;
     let points = [
         Vec3::new(-half.x, half.y, -half.z),
@@ -65,24 +70,24 @@ pub fn make_box(size: Vec3) -> Shape {
     Shape::make_box(Arc::new(ShapeBox::new(&points)))
 }
 
-pub fn make_box_small() -> Shape {
-    make_box(Vec3::splat(0.5))
+pub fn make_cube_small() -> Shape {
+    make_cube(Vec3::splat(0.5))
 }
 
-pub fn make_box_unit() -> Shape {
-    make_box(Vec3::splat(2.0))
+pub fn make_cube_unit() -> Shape {
+    make_cube(Vec3::splat(2.0))
 }
 
 pub fn make_box_ground() -> Shape {
-    Shape::make_box(Arc::new(ShapeBox::new(&BOX_GROUND)))
+    make_box_from_points(&BOX_GROUND)
 }
 
 pub fn make_box_wall0() -> Shape {
-    Shape::make_box(Arc::new(ShapeBox::new(&BOX_WALL0)))
+    make_box_from_points(&BOX_WALL0)
 }
 
 pub fn make_box_wall1() -> Shape {
-    Shape::make_box(Arc::new(ShapeBox::new(&BOX_WALL1)))
+    make_box_from_points(&BOX_WALL1)
 }
 
 pub fn load_convex_shape(path: &str) -> Result<ShapeConvex, Box<dyn Error>> {
