@@ -57,15 +57,53 @@ impl ConstraintArena {
         self.constraints.clear();
     }
 
-    pub fn add_distance_constraint(&mut self, config: ConstraintConfig) {
+    pub fn add_distance_constraint(
+        &mut self,
+        bodies: &BodyArena,
+        handle_a: BodyHandle,
+        handle_b: BodyHandle,
+    ) {
+        let body_a = bodies.get_body(handle_a);
+        let body_b = bodies.get_body(handle_b);
+        let joint_world_space_anchor = body_a.position;
+
+        let anchor_a = body_a.world_to_local(joint_world_space_anchor);
+        let anchor_b = body_b.world_to_local(joint_world_space_anchor);
+
         self.constraints
-            .push(Box::new(ConstraintDistance::new(config)));
+            .push(Box::new(ConstraintDistance::new(ConstraintConfig {
+                handle_a,
+                handle_b,
+                anchor_a,
+                axis_a: Vec3::ZERO,
+                anchor_b,
+                axis_b: Vec3::ZERO,
+            })));
     }
 
-    pub fn add_hinge_constraint(&mut self, config: ConstraintConfig, relative_orientation: Quat) {
+    pub fn add_hinge_constraint(
+        &mut self,
+        bodies: &BodyArena,
+        handle_a: BodyHandle,
+        handle_b: BodyHandle,
+    ) {
+        let body_a = bodies.get_body(handle_a);
+        let body_b = bodies.get_body(handle_b);
+
+        let joint_world_space_anchor = body_a.position;
+
+        let relative_orientation = body_a.orientation.inverse() * body_b.orientation;
+
         self.constraints
             .push(Box::new(ConstraintHingeQuatLimited::new(
-                config,
+                ConstraintConfig {
+                    handle_a,
+                    handle_b,
+                    anchor_a: body_a.world_to_local(joint_world_space_anchor),
+                    anchor_b: body_b.world_to_local(joint_world_space_anchor),
+                    axis_a: body_a.orientation.inverse() * Vec3::X,
+                    axis_b: Vec3::ZERO,
+                },
                 relative_orientation,
             )))
     }

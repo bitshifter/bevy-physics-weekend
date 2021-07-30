@@ -1,7 +1,7 @@
 use crate::{
     body::{Body, BodyArena, BodyHandle},
     broadphase::broadphase,
-    constraints::{ConstraintArena, ConstraintConfig},
+    constraints::ConstraintArena,
     contact::{Contact, ContactArena},
     intersect::intersect_dynamic,
     manifold::ManifoldCollector,
@@ -55,21 +55,7 @@ fn add_distance_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintA
         shape: make_box_small(),
     });
 
-    let body_a = bodies.get_body(handle_a);
-    let body_b = bodies.get_body(handle_b);
-    let joint_world_space_anchor = body_a.position;
-
-    let anchor_a = body_a.world_to_local(joint_world_space_anchor);
-    let anchor_b = body_b.world_to_local(joint_world_space_anchor);
-
-    constraints.add_distance_constraint(ConstraintConfig {
-        handle_a,
-        handle_b,
-        anchor_a,
-        axis_a: Vec3::ZERO,
-        anchor_b,
-        axis_b: Vec3::ZERO,
-    });
+    constraints.add_distance_constraint(bodies, handle_a, handle_b);
 }
 
 #[allow(dead_code)]
@@ -87,9 +73,6 @@ fn add_box_chain(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
     const NUM_JOINTS: usize = 5;
     for _ in 0..NUM_JOINTS {
         let body_a = bodies.get_body(handle_a);
-        let joint_world_space_anchor = body_a.position;
-
-        let anchor_a = body_a.world_to_local(joint_world_space_anchor);
 
         let body_b = Body {
             position: body_a.position + Vec3::X,
@@ -99,17 +82,9 @@ fn add_box_chain(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
             ..Body::default()
         };
 
-        let anchor_b = body_b.world_to_local(joint_world_space_anchor);
         let handle_b = bodies.add(body_b);
 
-        constraints.add_distance_constraint(ConstraintConfig {
-            handle_a,
-            handle_b,
-            anchor_a,
-            anchor_b,
-            axis_a: Vec3::ZERO,
-            axis_b: Vec3::ZERO,
-        });
+        constraints.add_distance_constraint(bodies, handle_a, handle_b);
 
         handle_a = handle_b;
     }
@@ -165,24 +140,7 @@ fn add_hinge_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintAren
         ..Body::default()
     });
 
-    let body_a = bodies.get_body(handle_a);
-    let body_b = bodies.get_body(handle_b);
-
-    let joint_world_space_anchor = body_a.position;
-
-    let relative_orientation = body_a.orientation.inverse() * body_b.orientation;
-
-    constraints.add_hinge_constraint(
-        ConstraintConfig {
-            handle_a,
-            handle_b,
-            anchor_a: body_a.world_to_local(joint_world_space_anchor),
-            anchor_b: body_b.world_to_local(joint_world_space_anchor),
-            axis_a: body_a.orientation.inverse() * Vec3::X,
-            axis_b: Vec3::ZERO,
-        },
-        relative_orientation,
-    );
+    constraints.add_hinge_constraint(bodies, handle_a, handle_b);
 }
 
 #[allow(dead_code)]
