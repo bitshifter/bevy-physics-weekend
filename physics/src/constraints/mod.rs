@@ -9,6 +9,7 @@ use crate::{
     body::{BodyArena, BodyHandle},
     math::{MatMN, VecN},
 };
+use constraint_constant_velocity::ConstraintConstantVelocityLimited;
 use constraint_distance::ConstraintDistance;
 use constraint_hinge_quat::ConstraintHingeQuatLimited;
 pub use constraint_penetration::ConstraintPenetration;
@@ -96,6 +97,33 @@ impl ConstraintArena {
 
         self.constraints
             .push(Box::new(ConstraintHingeQuatLimited::new(
+                ConstraintConfig {
+                    handle_a,
+                    handle_b,
+                    anchor_a: body_a.world_to_local(joint_world_space_anchor),
+                    anchor_b: body_b.world_to_local(joint_world_space_anchor),
+                    axis_a: body_a.orientation.inverse() * Vec3::X,
+                    axis_b: Vec3::ZERO,
+                },
+                relative_orientation,
+            )))
+    }
+
+    pub fn add_constant_velocity_constraint(
+        &mut self,
+        bodies: &BodyArena,
+        handle_a: BodyHandle,
+        handle_b: BodyHandle,
+    ) {
+        let body_a = bodies.get_body(handle_a);
+        let body_b = bodies.get_body(handle_b);
+
+        let joint_world_space_anchor = body_a.position;
+
+        let relative_orientation = body_a.orientation.inverse() * body_b.orientation;
+
+        self.constraints
+            .push(Box::new(ConstraintConstantVelocityLimited::new(
                 ConstraintConfig {
                     handle_a,
                     handle_b,

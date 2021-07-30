@@ -122,7 +122,10 @@ fn add_box_stack(bodies: &mut BodyArena) {
 fn add_hinge_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
     let handle_a = bodies.add(Body {
         position: Vec3::new(-2.0, 6.0, -5.0),
-        orientation: Quat::from_axis_angle(Vec3::ONE.normalize(), std::f32::consts::PI * 0.25),
+        orientation: Quat::from_axis_angle(
+            Vec3::new(1.0, 1.0, 1.0).normalize(),
+            std::f32::consts::FRAC_PI_4,
+        ),
         inv_mass: 0.0,
         elasticity: 0.9,
         friction: 0.5,
@@ -132,7 +135,10 @@ fn add_hinge_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintAren
 
     let handle_b = bodies.add(Body {
         position: Vec3::new(-2.0, 5.0, -5.0),
-        orientation: Quat::from_axis_angle(Vec3::ONE.normalize(), std::f32::consts::PI * 0.25),
+        orientation: Quat::from_axis_angle(
+            Vec3::new(0.0, 1.0, 1.0).normalize(),
+            std::f32::consts::FRAC_PI_4,
+        ),
         inv_mass: 1.0,
         elasticity: 1.0,
         friction: 0.5,
@@ -141,6 +147,37 @@ fn add_hinge_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintAren
     });
 
     constraints.add_hinge_constraint(bodies, handle_a, handle_b);
+}
+
+#[allow(dead_code)]
+fn add_constant_velocity_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
+    let handle_a = bodies.add(Body {
+        position: Vec3::new(2.0, 6.0, -5.0),
+        orientation: Quat::from_axis_angle(
+            Vec3::new(1.0, 1.0, 1.0).normalize(),
+            std::f32::consts::FRAC_PI_2,
+        ),
+        inv_mass: 0.0,
+        elasticity: 0.9,
+        friction: 0.5,
+        shape: make_box_small(),
+        ..Body::default()
+    });
+
+    let handle_b = bodies.add(Body {
+        position: Vec3::new(2.0, 5.0, -5.0),
+        orientation: Quat::from_axis_angle(
+            Vec3::new(0.0, 1.0, 1.0).normalize(),
+            std::f32::consts::FRAC_PI_2,
+        ),
+        inv_mass: 1.0,
+        elasticity: 1.0,
+        friction: 0.5,
+        shape: make_box_small(),
+        ..Body::default()
+    });
+
+    constraints.add_constant_velocity_constraint(bodies, handle_a, handle_b)
 }
 
 #[allow(dead_code)]
@@ -331,7 +368,9 @@ impl PhysicsScene {
 
         // add_box_stack(&mut self.bodies);
 
-        add_hinge_constraint(&mut self.bodies, &mut self.constraints);
+        // add_hinge_constraint(&mut self.bodies, &mut self.constraints);
+
+        add_constant_velocity_constraint(&mut self.bodies, &mut self.constraints);
 
         add_standard_sandbox(&mut self.bodies);
 
