@@ -32,7 +32,7 @@ fn add_dynamic_balls(bodies: &mut BodyArena) {
 }
 
 #[allow(dead_code)]
-fn add_box_dist_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
+fn add_distance_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
     let handle_a = bodies.add(Body {
         position: Vec3::new(0.0, 5.0, 0.0),
         orientation: Quat::IDENTITY,
@@ -367,7 +367,7 @@ impl PhysicsScene {
 
         // add_dynamic_balls(&mut self.bodies);
 
-        // add_box_dist_constraint(&mut self.bodies, &mut self.constraints);
+        // add_distance_constraint(&mut self.bodies, &mut self.constraints);
 
         // add_box_chain(&mut self.bodies, &mut self.constraints);
 

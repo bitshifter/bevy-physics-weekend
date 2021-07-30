@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+mod constraint_constant_velocity;
 mod constraint_distance;
 mod constraint_hinge_quat;
 mod constraint_orientation;
