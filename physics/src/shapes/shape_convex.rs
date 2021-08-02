@@ -6,8 +6,6 @@ use crate::bounds::Bounds;
 use glam::{Mat3, Quat, Vec3};
 use serde::{Deserialize, Serialize};
 
-// TODO: There are a lot of C style loops that could be made idomatic in here.
-
 fn find_point_furthest_in_dir(pts: &[Vec3], dir: Vec3) -> usize {
     let mut max_idx = 0;
     let mut max_dist = dir.dot(pts[0]);

@@ -375,17 +375,9 @@ pub fn gjk_does_intersect(body_a: &Body, body_b: &Body, bias: f32) -> Option<(Ve
     if num_pts == 2 {
         let ab = simplex_points[1].xyz - simplex_points[0].xyz;
         let u = {
-            // TODO: replace with glam Vec3::any_orthonormal_vector?
-            // let (u, _v) = ab.get_ortho();
             let n = ab.normalize();
-            let w = if n.z * n.z > 0.9 * 0.9 {
-                Vec3::X
-            } else {
-                Vec3::Z
-            };
-            let u = w.cross(n).normalize();
-            let v = n.cross(u).normalize();
-            v.cross(n).normalize()
+            let v = n.any_orthonormal_vector();
+            v.cross(n)
         };
 
         let new_dir = u;

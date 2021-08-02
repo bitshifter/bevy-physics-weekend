@@ -21,7 +21,6 @@ pub use constraint_penetration::ConstraintPenetration;
 use glam::{Mat4, Quat, Vec3, Vec4};
 
 pub fn quat_left(q: Quat) -> Mat4 {
-    // TODO: might need to be transposed
     Mat4::from_cols(
         Vec4::new(q.w, -q.x, -q.y, -q.z),
         Vec4::new(q.x, q.w, -q.z, q.y),
@@ -31,7 +30,6 @@ pub fn quat_left(q: Quat) -> Mat4 {
 }
 
 pub fn quat_right(q: Quat) -> Mat4 {
-    // TODO: might need to be transposed
     Mat4::from_cols(
         Vec4::new(q.w, -q.x, -q.y, -q.z),
         Vec4::new(q.x, q.w, q.z, -q.y),

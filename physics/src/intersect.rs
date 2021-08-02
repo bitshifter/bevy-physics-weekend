@@ -332,7 +332,7 @@ mod test {
     fn test_sphere_intersect_dynamic() {
         use crate::{
             body::Body,
-            scene::BodyHandle,
+            body::BodyHandle,
             scene_shapes::{make_box_ground, make_sphere},
         };
         use glam::{Quat, Vec3};

@@ -51,7 +51,6 @@ impl Constraint for ConstraintHingeQuat {
         let q1_inv = q1.inverse();
 
         let hinge_axis = self.config.axis_a;
-        // TODO: may differ from Vec3::GetOrtho in the book
         let (u, v) = hinge_axis.any_orthonormal_pair();
 
         let p = Mat4::from_cols(Vec4::ZERO, Vec4::Y, Vec4::Z, Vec4::W);
@@ -235,7 +234,6 @@ impl Constraint for ConstraintHingeQuatLimited {
 
         // the axis is defined in the local space of body_a
         let hinge_axis = self.config.axis_a;
-        // TODO: may differ from Vec3::GetOrtho in the book
         let (u, v) = hinge_axis.any_orthonormal_pair();
 
         let p = Mat4::from_cols(Vec4::ZERO, Vec4::Y, Vec4::Z, Vec4::W);
