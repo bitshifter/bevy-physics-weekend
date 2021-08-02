@@ -150,6 +150,9 @@ impl ConstraintArena {
         let body_a = bodies.get_body(handle_a);
         let body_b = bodies.get_body(handle_b);
 
+        // set the initial relative orientation (in body_a's space)
+        let q0 = body_a.orientation.inverse() * body_b.orientation;
+
         self.constraints.push(Box::new(ConstraintMotor::new(
             ConstraintConfig {
                 handle_a,
@@ -158,6 +161,7 @@ impl ConstraintArena {
                 anchor_b: body_b.world_to_local(world_space_anchor),
                 ..ConstraintConfig::default()
             },
+            q0,
             motor_axis,
             motor_speed,
         )))

@@ -16,11 +16,11 @@ pub struct ConstraintMotor {
 }
 
 impl ConstraintMotor {
-    pub fn new(config: ConstraintConfig, motor_axis: Vec3, motor_speed: f32) -> Self {
+    pub fn new(config: ConstraintConfig, q0: Quat, motor_axis: Vec3, motor_speed: f32) -> Self {
         Self {
             config,
             jacobian: MatMN::zero(),
-            q0: Quat::IDENTITY,
+            q0,
             motor_axis,
             motor_speed,
             baumgarte: Vec3::ZERO,
@@ -163,16 +163,16 @@ impl Constraint for ConstraintMotor {
             self.jacobian.rows[3][11] = j4.z;
         }
 
+        // calculate the baumgarte stabilization
+        let beta = 0.05;
+        let c = r.dot(r);
+
         let qr = body_a.orientation.inverse() * body_b.orientation;
         let qr_a = qr * q0_inv; // relative orientation in body_a's space
 
         // get the world space axis for the relative rotation
         let axis_a = body_a.orientation * qr_a.xyz();
 
-        // calculate the baumgarte stabilization
-        let mut c = r.dot(r);
-        c = f32::max(0.0, c - 0.01);
-        let beta = 0.05;
         self.baumgarte[0] = (beta / dt_sec) * c;
         self.baumgarte[1] = motor_u.dot(axis_a) * (beta / dt_sec);
         self.baumgarte[2] = motor_v.dot(axis_a) * (beta / dt_sec);

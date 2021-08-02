@@ -408,14 +408,14 @@ fn add_motor_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintAren
         2.0,
     );
 
-    // bodies.add(Body {
-    //     position: motor_pos + Vec3::new(2.0, 2.0, 0.0),
-    //     inv_mass: 1.0,
-    //     elasticity: 0.1,
-    //     friction: 0.9,
-    //     shape: make_sphere(1.0),
-    //     ..Body::default()
-    // });
+    bodies.add(Body {
+        position: motor_pos + Vec3::new(2.0, 2.0, 0.0),
+        inv_mass: 1.0,
+        elasticity: 0.1,
+        friction: 0.9,
+        shape: make_sphere(1.0),
+        ..Body::default()
+    });
 }
 
 #[allow(dead_code)]
