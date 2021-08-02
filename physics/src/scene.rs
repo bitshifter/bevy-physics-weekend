@@ -124,7 +124,7 @@ fn add_box_stack(bodies: &mut BodyArena) {
 }
 
 #[allow(dead_code)]
-fn add_hinge_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
+fn add_hinge(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
     let cube_shape = make_cube_small();
 
     let handle_a = bodies.add(Body {
@@ -357,7 +357,7 @@ fn add_rag_doll(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
 }
 
 #[allow(dead_code)]
-fn add_motor_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
+fn add_motor(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
     const L: f32 = 3.0;
     const T: f32 = 0.25;
     const BOX_BEAM: [Vec3; 8] = [
@@ -414,6 +414,43 @@ fn add_motor_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintAren
         elasticity: 0.1,
         friction: 0.9,
         shape: make_sphere(1.0),
+        ..Body::default()
+    });
+}
+
+#[allow(dead_code)]
+fn add_mover(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
+    const L: f32 = 3.0;
+    const T: f32 = 0.25;
+    const BOX_PLATFORM: [Vec3; 8] = [
+        const_vec3!([-L, -T, -L]),
+        const_vec3!([L, -T, -L]),
+        const_vec3!([-L, -T, L]),
+        const_vec3!([L, -T, L]),
+        const_vec3!([-L, T, -L]),
+        const_vec3!([L, T, -L]),
+        const_vec3!([-L, T, L]),
+        const_vec3!([L, T, L]),
+    ];
+
+    let box_platform = make_box_from_points(&BOX_PLATFORM);
+    let handle_a = bodies.add(Body {
+        position: Vec3::new(10.0, 5.0, 0.0),
+        inv_mass: 0.0,
+        elasticity: 0.1,
+        friction: 0.9,
+        shape: box_platform,
+        ..Body::default()
+    });
+
+    constraints.add_constraint_mover(bodies, handle_a);
+
+    bodies.add(Body {
+        position: Vec3::new(10.0, 6.3, 0.0),
+        inv_mass: 1.0,
+        elasticity: 0.1,
+        friction: 0.9,
+        shape: make_cube_unit(),
         ..Body::default()
     });
 }
@@ -606,13 +643,15 @@ impl PhysicsScene {
 
         // add_box_stack(&mut self.bodies);
 
-        // add_hinge_constraint(&mut self.bodies, &mut self.constraints);
+        // add_hinge(&mut self.bodies, &mut self.constraints);
 
         // add_constant_velocity_constraint(&mut self.bodies, &mut self.constraints);
 
         // add_rag_doll(&mut self.bodies, &mut self.constraints);
 
-        add_motor_constraint(&mut self.bodies, &mut self.constraints);
+        // add_motor(&mut self.bodies, &mut self.constraints);
+
+        add_mover(&mut self.bodies, &mut self.constraints);
 
         add_standard_sandbox(&mut self.bodies);
 

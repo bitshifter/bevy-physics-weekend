@@ -3,6 +3,7 @@ mod constraint_constant_velocity;
 mod constraint_distance;
 mod constraint_hinge_quat;
 mod constraint_motor;
+mod constraint_mover;
 mod constraint_orientation;
 mod constraint_penetration;
 
@@ -14,6 +15,7 @@ use constraint_constant_velocity::ConstraintConstantVelocityLimited;
 use constraint_distance::ConstraintDistance;
 use constraint_hinge_quat::ConstraintHingeQuatLimited;
 use constraint_motor::ConstraintMotor;
+use constraint_mover::ConstraintMoverSimple;
 pub use constraint_penetration::ConstraintPenetration;
 use glam::{Mat4, Quat, Vec3, Vec4};
 
@@ -165,6 +167,14 @@ impl ConstraintArena {
             motor_axis,
             motor_speed,
         )))
+    }
+
+    pub fn add_constraint_mover(&mut self, _bodies: &BodyArena, handle_a: BodyHandle) {
+        self.constraints
+            .push(Box::new(ConstraintMoverSimple::new(ConstraintConfig {
+                handle_a,
+                ..ConstraintConfig::default()
+            })))
     }
 
     pub fn pre_solve(&mut self, bodies: &mut BodyArena, dt_sec: f32) {
