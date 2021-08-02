@@ -13,10 +13,10 @@ pub struct ConstraintOrientation {
 }
 
 impl ConstraintOrientation {
-    pub fn new(config: ConstraintConfig) -> Self {
+    pub fn new(config: ConstraintConfig, q0: Quat) -> Self {
         ConstraintOrientation {
             config,
-            q0: Quat::IDENTITY,
+            q0,
             jacobian: MatMN::zero(),
             baumgarte: 0.0,
         }

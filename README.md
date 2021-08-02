@@ -7,7 +7,9 @@ This has been a learning excercise for me to get a better understanding of
 implementing a physics engine, using Bevy and also making use of my math library
 [glam].
 
-So far the first and second books have been implemented.
+Note that the code from the book and this code is for learning purposes, it's
+not very optimized and not intended for use in production. For real world use
+check out [Rapier] or [physx-rs].
 
 I'm using a fork of Bevy 0.5.0 that is using the latest version of glam from
 github.
@@ -58,4 +60,6 @@ don't translate so well to Rust so some organisation of code has changed.
 [Bevy]: https://bevyengine.org
 [glam]: https://github.com/bitshifter/glam
 [Bevy Flycam]: https://github.com/sburris0/bevy_flycam
+[Rapier]: https://rapier.rs
+[physx-rs]: https://github.com/EmbarkStudios/physx-rs
 [Creative Commons Zero v1.0 Universal]: LICENSE

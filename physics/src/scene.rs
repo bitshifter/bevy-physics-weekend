@@ -10,6 +10,80 @@ use crate::{
 use glam::{const_vec3, Quat, Vec3};
 
 #[allow(dead_code)]
+fn add_sphere(bodies: &mut BodyArena) {
+    bodies.add(Body {
+        position: Vec3::new(-10.0, 5.0, 0.0),
+        inv_mass: 1.0,
+        elasticity: 0.9,
+        friction: 0.5,
+        shape: make_sphere(1.0),
+        ..Body::default()
+    });
+}
+
+#[allow(dead_code)]
+fn add_convex_hull(bodies: &mut BodyArena) {
+    bodies.add(Body {
+        position: Vec3::new(-10.0, 10.0, 0.0),
+        inv_mass: 1.0,
+        elasticity: 1.0,
+        friction: 0.5,
+        shape: make_diamond(),
+        ..Body::default()
+    });
+}
+
+#[allow(dead_code)]
+fn add_teleportation_fix(bodies: &mut BodyArena) {
+    // demonstrates continuous collision detection
+    bodies.add(Body {
+        position: Vec3::new(10.0, 3.0, -10.0),
+        linear_velocity: Vec3::new(-100.0, 0.0, 0.0),
+        inv_mass: 1.0,
+        elasticity: 0.5,
+        friction: 0.5,
+        shape: make_sphere(0.5),
+        ..Body::default()
+    });
+
+    bodies.add(Body {
+        position: Vec3::new(-10.0, 3.0, -10.0),
+        linear_velocity: Vec3::new(100.0, 0.0, 0.0),
+        angular_velocity: Vec3::new(0.0, 0.0, 10.0),
+        inv_mass: 1.0,
+        elasticity: 0.5,
+        friction: 0.5,
+        shape: make_diamond(),
+        ..Body::default()
+    });
+}
+
+#[allow(dead_code)]
+fn add_orientation_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
+    let cube_shape = make_cube_small();
+
+    let handle_a = bodies.add(Body {
+        position: Vec3::new(5.0, 5.0, 0.0),
+        inv_mass: 0.0,
+        elasticity: 0.9,
+        friction: 0.5,
+        shape: cube_shape.clone(),
+        ..Body::default()
+    });
+
+    let handle_b = bodies.add(Body {
+        position: Vec3::new(6.0, 5.0, 0.0),
+        inv_mass: 0.001,
+        elasticity: 1.0,
+        friction: 0.5,
+        shape: cube_shape.clone(),
+        ..Body::default()
+    });
+
+    constraints.add_orientation_constraint(bodies, handle_a, handle_b)
+}
+
+#[allow(dead_code)]
 fn add_dynamic_balls(bodies: &mut BodyArena) {
     let ball_shape = make_sphere(0.5);
     for x in 0..6 {
@@ -124,7 +198,7 @@ fn add_box_stack(bodies: &mut BodyArena) {
 }
 
 #[allow(dead_code)]
-fn add_hinge(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
+fn add_hinge_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
     let cube_shape = make_cube_small();
 
     let handle_a = bodies.add(Body {
@@ -204,7 +278,7 @@ fn add_constant_velocity_constraint(bodies: &mut BodyArena, constraints: &mut Co
 }
 
 #[allow(dead_code)]
-fn add_rag_doll(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
+fn add_rag_doll(bodies: &mut BodyArena, constraints: &mut ConstraintArena, offset: Vec3) {
     const T2: f32 = 0.25;
     const W2: f32 = T2 * 2.0;
     const H3: f32 = T2 * 4.0;
@@ -236,7 +310,7 @@ fn add_rag_doll(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
     let limb_shape = make_box_from_points(&BOX_LIMB);
 
     let head_handle = bodies.add(Body {
-        position: Vec3::new(0.0, 5.5, 0.0),
+        position: Vec3::new(0.0, 5.5, 0.0) + offset,
         inv_mass: 2.0,
         elasticity: 1.0,
         friction: 1.0,
@@ -245,7 +319,7 @@ fn add_rag_doll(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
     });
 
     let torso_handle = bodies.add(Body {
-        position: Vec3::new(0.0, 4.0, 0.0),
+        position: Vec3::new(0.0, 4.0, 0.0) + offset,
         inv_mass: 0.5,
         elasticity: 1.0,
         friction: 1.0,
@@ -254,7 +328,7 @@ fn add_rag_doll(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
     });
 
     let left_arm_handle = bodies.add(Body {
-        position: Vec3::new(0.0, 4.75, 2.0),
+        position: Vec3::new(0.0, 4.75, 2.0) + offset,
         orientation: Quat::from_axis_angle(Vec3::Y, -3.1415 / 2.0),
         inv_mass: 1.0,
         elasticity: 1.0,
@@ -264,7 +338,7 @@ fn add_rag_doll(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
     });
 
     let right_arm_handle = bodies.add(Body {
-        position: Vec3::new(0.0, 4.75, -2.0),
+        position: Vec3::new(0.0, 4.75, -2.0) + offset,
         orientation: Quat::from_axis_angle(Vec3::Y, 3.1415 / 2.0),
         inv_mass: 1.0,
         elasticity: 1.0,
@@ -274,7 +348,7 @@ fn add_rag_doll(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
     });
 
     let left_leg_handle = bodies.add(Body {
-        position: Vec3::new(0.0, 2.5, 1.0),
+        position: Vec3::new(0.0, 2.5, 1.0) + offset,
         orientation: Quat::from_axis_angle(Vec3::Z, 3.1415 / 2.0),
         inv_mass: 1.0,
         elasticity: 1.0,
@@ -284,7 +358,7 @@ fn add_rag_doll(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
     });
 
     let right_leg_handle = bodies.add(Body {
-        position: Vec3::new(0.0, 2.5, -1.0),
+        position: Vec3::new(0.0, 2.5, -1.0) + offset,
         orientation: Quat::from_axis_angle(Vec3::Z, 3.1415 / 2.0),
         inv_mass: 1.0,
         elasticity: 1.0,
@@ -357,7 +431,7 @@ fn add_rag_doll(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
 }
 
 #[allow(dead_code)]
-fn add_motor(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
+fn add_motor_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
     const L: f32 = 3.0;
     const T: f32 = 0.25;
     const BOX_BEAM: [Vec3; 8] = [
@@ -419,7 +493,7 @@ fn add_motor(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
 }
 
 #[allow(dead_code)]
-fn add_mover(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
+fn add_mover_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
     const L: f32 = 3.0;
     const T: f32 = 0.25;
     const BOX_PLATFORM: [Vec3; 8] = [
@@ -629,7 +703,6 @@ impl PhysicsScene {
 
     pub fn reset(&mut self) {
         self.step_num = 0;
-        // let num_bodies = 6 * 6 + 3 * 3;
         self.bodies.clear();
         self.constraints.clear();
         self.contacts.clear();
@@ -639,19 +712,31 @@ impl PhysicsScene {
 
         // add_distance_constraint(&mut self.bodies, &mut self.constraints);
 
-        // add_box_chain(&mut self.bodies, &mut self.constraints);
+        add_rag_doll(
+            &mut self.bodies,
+            &mut self.constraints,
+            Vec3::new(-5.0, 0.0, 0.0),
+        );
 
-        // add_box_stack(&mut self.bodies);
+        add_box_chain(&mut self.bodies, &mut self.constraints);
 
-        // add_hinge(&mut self.bodies, &mut self.constraints);
+        add_box_stack(&mut self.bodies);
 
-        // add_constant_velocity_constraint(&mut self.bodies, &mut self.constraints);
+        add_sphere(&mut self.bodies);
 
-        // add_rag_doll(&mut self.bodies, &mut self.constraints);
+        add_convex_hull(&mut self.bodies);
 
-        // add_motor(&mut self.bodies, &mut self.constraints);
+        add_motor_constraint(&mut self.bodies, &mut self.constraints);
 
-        add_mover(&mut self.bodies, &mut self.constraints);
+        add_mover_constraint(&mut self.bodies, &mut self.constraints);
+
+        add_hinge_constraint(&mut self.bodies, &mut self.constraints);
+
+        add_constant_velocity_constraint(&mut self.bodies, &mut self.constraints);
+
+        add_teleportation_fix(&mut self.bodies);
+
+        add_orientation_constraint(&mut self.bodies, &mut self.constraints);
 
         add_standard_sandbox(&mut self.bodies);
 

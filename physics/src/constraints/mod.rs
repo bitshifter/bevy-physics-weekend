@@ -16,6 +16,7 @@ use constraint_distance::ConstraintDistance;
 use constraint_hinge_quat::ConstraintHingeQuatLimited;
 use constraint_motor::ConstraintMotor;
 use constraint_mover::ConstraintMoverSimple;
+use constraint_orientation::ConstraintOrientation;
 pub use constraint_penetration::ConstraintPenetration;
 use glam::{Mat4, Quat, Vec3, Vec4};
 
@@ -60,6 +61,29 @@ impl Default for ConstraintArena {
 impl ConstraintArena {
     pub fn clear(&mut self) {
         self.constraints.clear();
+    }
+
+    pub fn add_orientation_constraint(
+        &mut self,
+        bodies: &BodyArena,
+        handle_a: BodyHandle,
+        handle_b: BodyHandle,
+    ) {
+        let body_a = bodies.get_body(handle_a);
+        let body_b = bodies.get_body(handle_b);
+
+        let world_space_anchor = body_a.position;
+
+        self.constraints.push(Box::new(ConstraintOrientation::new(
+            ConstraintConfig {
+                handle_a,
+                handle_b,
+                anchor_a: body_a.world_to_local(world_space_anchor),
+                anchor_b: body_b.world_to_local(world_space_anchor),
+                ..ConstraintConfig::default()
+            },
+            body_a.orientation.inverse() * body_b.orientation,
+        )))
     }
 
     pub fn add_distance_constraint(
