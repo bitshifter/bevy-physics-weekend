@@ -2,6 +2,7 @@
 mod constraint_constant_velocity;
 mod constraint_distance;
 mod constraint_hinge_quat;
+mod constraint_motor;
 mod constraint_orientation;
 mod constraint_penetration;
 
@@ -12,6 +13,7 @@ use crate::{
 use constraint_constant_velocity::ConstraintConstantVelocityLimited;
 use constraint_distance::ConstraintDistance;
 use constraint_hinge_quat::ConstraintHingeQuatLimited;
+use constraint_motor::ConstraintMotor;
 pub use constraint_penetration::ConstraintPenetration;
 use glam::{Mat4, Quat, Vec3, Vec4};
 
@@ -134,6 +136,31 @@ impl ConstraintArena {
                 },
                 relative_orientation,
             )))
+    }
+
+    pub fn add_constraint_motor(
+        &mut self,
+        bodies: &BodyArena,
+        handle_a: BodyHandle,
+        handle_b: BodyHandle,
+        world_space_anchor: Vec3,
+        motor_axis: Vec3,
+        motor_speed: f32,
+    ) {
+        let body_a = bodies.get_body(handle_a);
+        let body_b = bodies.get_body(handle_b);
+
+        self.constraints.push(Box::new(ConstraintMotor::new(
+            ConstraintConfig {
+                handle_a,
+                handle_b,
+                anchor_a: body_a.world_to_local(world_space_anchor),
+                anchor_b: body_b.world_to_local(world_space_anchor),
+                ..ConstraintConfig::default()
+            },
+            motor_axis,
+            motor_speed,
+        )))
     }
 
     pub fn pre_solve(&mut self, bodies: &mut BodyArena, dt_sec: f32) {

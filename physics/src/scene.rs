@@ -357,6 +357,68 @@ fn add_rag_doll(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
 }
 
 #[allow(dead_code)]
+fn add_motor_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
+    const L: f32 = 3.0;
+    const T: f32 = 0.25;
+    const BOX_BEAM: [Vec3; 8] = [
+        const_vec3!([-L, -T, -T]),
+        const_vec3!([L, -T, -T]),
+        const_vec3!([-L, -T, T]),
+        const_vec3!([L, -T, T]),
+        const_vec3!([-L, T, -T]),
+        const_vec3!([L, T, -T]),
+        const_vec3!([-L, T, T]),
+        const_vec3!([L, T, T]),
+    ];
+
+    let box_small = make_cube_small();
+    let box_beam = make_box_from_points(&BOX_BEAM);
+
+    let motor_pos = Vec3::new(5.0, 2.0, 0.0);
+    let motor_axis = Vec3::Y;
+    let motor_orient = Quat::from_xyzw(1.0, 0.0, 0.0, 0.0);
+
+    let handle_a = bodies.add(Body {
+        position: motor_pos,
+        inv_mass: 0.0,
+        elasticity: 0.9,
+        friction: 0.5,
+        shape: box_small,
+        ..Body::default()
+    });
+
+    let handle_b = bodies.add(Body {
+        position: motor_pos - motor_axis,
+        orientation: motor_orient,
+        inv_mass: 0.01,
+        elasticity: 1.0,
+        friction: 0.5,
+        shape: box_beam,
+        ..Body::default()
+    });
+
+    let body_a = bodies.get_body(handle_a);
+
+    constraints.add_constraint_motor(
+        bodies,
+        handle_a,
+        handle_b,
+        body_a.position,
+        body_a.orientation.inverse() * motor_axis,
+        2.0,
+    );
+
+    // bodies.add(Body {
+    //     position: motor_pos + Vec3::new(2.0, 2.0, 0.0),
+    //     inv_mass: 1.0,
+    //     elasticity: 0.1,
+    //     friction: 0.9,
+    //     shape: make_sphere(1.0),
+    //     ..Body::default()
+    // });
+}
+
+#[allow(dead_code)]
 fn add_standard_sandbox(bodies: &mut BodyArena) {
     let wall_color = Vec3::splat(0.5);
 
@@ -548,7 +610,9 @@ impl PhysicsScene {
 
         // add_constant_velocity_constraint(&mut self.bodies, &mut self.constraints);
 
-        add_rag_doll(&mut self.bodies, &mut self.constraints);
+        // add_rag_doll(&mut self.bodies, &mut self.constraints);
+
+        add_motor_constraint(&mut self.bodies, &mut self.constraints);
 
         add_standard_sandbox(&mut self.bodies);
 
