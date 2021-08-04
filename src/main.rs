@@ -82,18 +82,28 @@ fn setup_rendering(
     physics_scene: Res<PhysicsScene>,
 ) {
     commands.spawn_bundle(LightBundle {
+        light: Light {
+            fov: f32::to_radians(75.0),
+            ..Light::default()
+        },
         transform: Transform::from_translation(Vec3::new(4.0, 8.0, 4.0)),
         ..Default::default()
     });
 
     for &body_handle in physics_scene.iter_body_handles() {
         let (body, color) = physics_scene.get_body_with_color(body_handle);
-        let color = Color::rgb(color.x, color.y, color.z);
+        let base_color = Color::rgb(color.x, color.y, color.z);
         let mesh = meshes.add(render::create_mesh_from_shape(body.shape.borrow()));
+        let material = StandardMaterial {
+            base_color,
+            metallic: 0.0,
+            reflectance: 0.0,
+            ..StandardMaterial::default()
+        };
         commands
             .spawn_bundle(PbrBundle {
                 mesh,
-                material: materials.add(color.into()),
+                material: materials.add(material),
                 ..Default::default()
             })
             .insert(body_handle);
