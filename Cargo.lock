@@ -456,7 +456,7 @@ version = "0.5.0"
 source = "git+http://github.com/bitshifter/bevy?branch=latest+glam-git#40b89d437b069020ef411d6cf9bbd5fa97ceb219"
 dependencies = [
  "bevy_reflect",
- "glam 0.16.0",
+ "glam 0.17.3",
 ]
 
 [[package]]
@@ -485,7 +485,7 @@ dependencies = [
  "bevy_utils",
  "downcast-rs",
  "erased-serde",
- "glam 0.16.0",
+ "glam 0.17.3",
  "parking_lot",
  "serde",
  "smallvec",
@@ -1548,8 +1548,8 @@ checksum = "3abb554f8ee44336b72d522e0a7fe86a29e09f839a36022fa869a7dfe941a54b"
 
 [[package]]
 name = "glam"
-version = "0.16.0"
-source = "git+https://github.com/bitshifter/glam-rs#8dd3b60186978bd912770e3e5068bf7decea788c"
+version = "0.17.3"
+source = "git+https://github.com/bitshifter/glam-rs#9214e78eb9d176fccd9933e7646ef67f0ddd44ee"
 dependencies = [
  "serde",
 ]
@@ -2457,7 +2457,7 @@ dependencies = [
 name = "physics"
 version = "0.1.0"
 dependencies = [
- "glam 0.16.0",
+ "glam 0.17.3",
  "rand",
  "rand_pcg",
  "serde",

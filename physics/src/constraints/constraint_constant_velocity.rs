@@ -1,7 +1,6 @@
 use super::{quat_left, quat_right, Constraint, ConstraintConfig};
 use crate::{
     body::BodyArena,
-    math::glam_ext::QuatExt,
     math::{lcp_gauss_seidel, MatMN, MatN, VecN},
 };
 use glam::{Mat4, Quat, Vec3, Vec4};
@@ -93,7 +92,7 @@ impl Constraint for ConstraintConstantVelocity {
             self.jacobian.rows[1][1] = j1.y;
             self.jacobian.rows[1][2] = j1.z;
 
-            let tmp = mat_a * Vec4::new(0.0, cv.x, cv.y, cv.z) * -0.5;
+            let tmp = mat_a * Vec4::from((0.0, cv)) * -0.5;
             let j2 = Vec3::new(tmp[IDX + 0], tmp[IDX + 1], tmp[IDX + 2]);
             self.jacobian.rows[1][3] = j2.x;
             self.jacobian.rows[1][4] = j2.y;
@@ -104,7 +103,7 @@ impl Constraint for ConstraintConstantVelocity {
             self.jacobian.rows[1][7] = j3.y;
             self.jacobian.rows[1][8] = j3.z;
 
-            let tmp = mat_b * Vec4::new(0.0, cv.x, cv.y, cv.z) * 0.5;
+            let tmp = mat_b * Vec4::from((0.0, cv)) * 0.5;
             let j4 = Vec3::new(tmp[IDX + 0], tmp[IDX + 1], tmp[IDX + 2]);
             self.jacobian.rows[1][9] = j4.x;
             self.jacobian.rows[1][10] = j4.y;
@@ -266,7 +265,7 @@ impl Constraint for ConstraintConstantVelocityLimited {
             self.jacobian.rows[1][1] = j1.y;
             self.jacobian.rows[1][2] = j1.z;
 
-            let tmp = mat_a * Vec4::new(0.0, cv.x, cv.y, cv.z) * -0.5;
+            let tmp = mat_a * Vec4::from((0.0, cv)) * -0.5;
             let j2 = Vec3::new(tmp[IDX + 0], tmp[IDX + 1], tmp[IDX + 2]);
             self.jacobian.rows[1][3] = j2.x;
             self.jacobian.rows[1][4] = j2.y;
@@ -277,7 +276,7 @@ impl Constraint for ConstraintConstantVelocityLimited {
             self.jacobian.rows[1][7] = j3.y;
             self.jacobian.rows[1][8] = j3.z;
 
-            let tmp = mat_b * Vec4::new(0.0, cv.x, cv.y, cv.z) * 0.5;
+            let tmp = mat_b * Vec4::from((0.0, cv)) * 0.5;
             let j4 = Vec3::new(tmp[IDX + 0], tmp[IDX + 1], tmp[IDX + 2]);
             self.jacobian.rows[1][9] = j4.x;
             self.jacobian.rows[1][10] = j4.y;
@@ -292,7 +291,7 @@ impl Constraint for ConstraintConstantVelocityLimited {
             self.jacobian.rows[2][1] = j1.y;
             self.jacobian.rows[2][2] = j1.z;
 
-            let tmp = mat_a * Vec4::new(0.0, u.x, u.y, u.z) * -0.5;
+            let tmp = mat_a * Vec4::from((0.0, u)) * -0.5;
             let j2 = Vec3::new(tmp[IDX + 0], tmp[IDX + 1], tmp[IDX + 2]);
             self.jacobian.rows[2][3] = j2.x;
             self.jacobian.rows[2][4] = j2.y;
@@ -303,7 +302,7 @@ impl Constraint for ConstraintConstantVelocityLimited {
             self.jacobian.rows[2][7] = j3.y;
             self.jacobian.rows[2][8] = j3.z;
 
-            let tmp = mat_b * Vec4::new(0.0, u.x, u.y, u.z) * 0.5;
+            let tmp = mat_b * Vec4::from((0.0, u)) * 0.5;
             let j4 = Vec3::new(tmp[IDX + 0], tmp[IDX + 1], tmp[IDX + 2]);
             self.jacobian.rows[2][9] = j4.x;
             self.jacobian.rows[2][10] = j4.y;
@@ -318,7 +317,7 @@ impl Constraint for ConstraintConstantVelocityLimited {
             self.jacobian.rows[3][1] = j1.y;
             self.jacobian.rows[3][2] = j1.z;
 
-            let tmp = mat_a * Vec4::new(0.0, v.x, v.y, v.z) * -0.5;
+            let tmp = mat_a * Vec4::from((0.0, v)) * -0.5;
             let j2 = Vec3::new(tmp[IDX + 0], tmp[IDX + 1], tmp[IDX + 2]);
             self.jacobian.rows[3][3] = j2.x;
             self.jacobian.rows[3][4] = j2.y;
@@ -329,7 +328,7 @@ impl Constraint for ConstraintConstantVelocityLimited {
             self.jacobian.rows[3][7] = j3.y;
             self.jacobian.rows[3][8] = j3.z;
 
-            let tmp = mat_b * Vec4::new(0.0, v.x, v.y, v.z) * 0.5;
+            let tmp = mat_b * Vec4::from((0.0, v)) * 0.5;
             let j4 = Vec3::new(tmp[IDX + 0], tmp[IDX + 1], tmp[IDX + 2]);
             self.jacobian.rows[3][9] = j4.x;
             self.jacobian.rows[3][10] = j4.y;
