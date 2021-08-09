@@ -114,6 +114,7 @@ fn add_dynamic_balls(bodies: &mut BodyArena) {
 
 #[allow(dead_code)]
 fn add_distance_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
+    bodies.push_color(rgb_to_vec3(0xf3b0c3));
     let cube_shape = make_cube_small();
 
     let handle_a = bodies.add(Body {
@@ -139,24 +140,25 @@ fn add_distance_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintA
     });
 
     constraints.add_distance_constraint(bodies, handle_a, handle_b);
+
+    bodies.pop_color()
 }
 
 #[allow(dead_code)]
 fn add_box_chain(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
-    let cube_shape = make_cube_small();
     let color = rgb_to_vec3(0xcc99c9);
+    bodies.push_color(color);
 
-    let mut handle_a = bodies.add_with_color(
-        Body {
-            position: Vec3::new(0.0, NUM_JOINTS as f32 + 3.0, 5.0),
-            orientation: Quat::IDENTITY,
-            inv_mass: 0.0,
-            elasticity: 1.0,
-            shape: cube_shape.clone(),
-            ..Body::default()
-        },
-        color,
-    );
+    let cube_shape = make_cube_small();
+
+    let mut handle_a = bodies.add(Body {
+        position: Vec3::new(0.0, NUM_JOINTS as f32 + 3.0, 5.0),
+        orientation: Quat::IDENTITY,
+        inv_mass: 0.0,
+        elasticity: 1.0,
+        shape: cube_shape.clone(),
+        ..Body::default()
+    });
 
     const NUM_JOINTS: usize = 5;
     for _ in 0..NUM_JOINTS {
@@ -170,18 +172,22 @@ fn add_box_chain(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
             ..Body::default()
         };
 
-        let handle_b = bodies.add_with_color(body_b, color);
+        let handle_b = bodies.add(body_b);
 
         constraints.add_distance_constraint(bodies, handle_a, handle_b);
 
         handle_a = handle_b;
     }
+
+    bodies.pop_color()
 }
 
 #[allow(dead_code)]
 fn add_box_stack(bodies: &mut BodyArena) {
     let cube_shape = make_cube_unit();
+
     let color = rgb_to_vec3(0x9ec1cf);
+    bodies.push_color(color);
 
     let x = 0;
     let z = 0;
@@ -193,23 +199,22 @@ fn add_box_stack(bodies: &mut BodyArena) {
         let delta = 0.04;
         let scale_height = 2.0 + delta;
         let delta_height = 1.0 + delta;
-        bodies.add_with_color(
-            Body {
-                position: Vec3::new(
-                    xx * scale_height,
-                    delta_height + y as f32 * scale_height,
-                    zz * scale_height,
-                ),
-                orientation: Quat::IDENTITY,
-                inv_mass: 1.0,
-                elasticity: 0.5,
-                friction: 0.5,
-                shape: cube_shape.clone(),
-                ..Body::default()
-            },
-            color,
-        );
+        bodies.add(Body {
+            position: Vec3::new(
+                xx * scale_height,
+                delta_height + y as f32 * scale_height,
+                zz * scale_height,
+            ),
+            orientation: Quat::IDENTITY,
+            inv_mass: 1.0,
+            elasticity: 0.5,
+            friction: 0.5,
+            shape: cube_shape.clone(),
+            ..Body::default()
+        });
     }
+
+    bodies.pop_color()
 }
 
 #[allow(dead_code)]
@@ -321,85 +326,69 @@ fn add_rag_doll(bodies: &mut BodyArena, constraints: &mut ConstraintArena, offse
     ];
 
     let color = rgb_to_vec3(0xfeb144);
+    bodies.push_color(color);
+
     let head_shape = make_cube_small();
     let torso_shape = make_box_from_points(&BOX_TORSO);
     let limb_shape = make_box_from_points(&BOX_LIMB);
 
-    let head_handle = bodies.add_with_color(
-        Body {
-            position: Vec3::new(0.0, 5.5, 0.0) + offset,
-            inv_mass: 2.0,
-            elasticity: 1.0,
-            friction: 1.0,
-            shape: head_shape,
-            ..Body::default()
-        },
-        color,
-    );
+    let head_handle = bodies.add(Body {
+        position: Vec3::new(0.0, 5.5, 0.0) + offset,
+        inv_mass: 2.0,
+        elasticity: 1.0,
+        friction: 1.0,
+        shape: head_shape,
+        ..Body::default()
+    });
 
-    let torso_handle = bodies.add_with_color(
-        Body {
-            position: Vec3::new(0.0, 4.0, 0.0) + offset,
-            inv_mass: 0.5,
-            elasticity: 1.0,
-            friction: 1.0,
-            shape: torso_shape,
-            ..Body::default()
-        },
-        color,
-    );
+    let torso_handle = bodies.add(Body {
+        position: Vec3::new(0.0, 4.0, 0.0) + offset,
+        inv_mass: 0.5,
+        elasticity: 1.0,
+        friction: 1.0,
+        shape: torso_shape,
+        ..Body::default()
+    });
 
-    let left_arm_handle = bodies.add_with_color(
-        Body {
-            position: Vec3::new(0.0, 4.75, 2.0) + offset,
-            orientation: Quat::from_axis_angle(Vec3::Y, -3.1415 / 2.0),
-            inv_mass: 1.0,
-            elasticity: 1.0,
-            friction: 1.0,
-            shape: limb_shape.clone(),
-            ..Body::default()
-        },
-        color,
-    );
+    let left_arm_handle = bodies.add(Body {
+        position: Vec3::new(0.0, 4.75, 2.0) + offset,
+        orientation: Quat::from_axis_angle(Vec3::Y, -3.1415 / 2.0),
+        inv_mass: 1.0,
+        elasticity: 1.0,
+        friction: 1.0,
+        shape: limb_shape.clone(),
+        ..Body::default()
+    });
 
-    let right_arm_handle = bodies.add_with_color(
-        Body {
-            position: Vec3::new(0.0, 4.75, -2.0) + offset,
-            orientation: Quat::from_axis_angle(Vec3::Y, 3.1415 / 2.0),
-            inv_mass: 1.0,
-            elasticity: 1.0,
-            friction: 1.0,
-            shape: limb_shape.clone(),
-            ..Body::default()
-        },
-        color,
-    );
+    let right_arm_handle = bodies.add(Body {
+        position: Vec3::new(0.0, 4.75, -2.0) + offset,
+        orientation: Quat::from_axis_angle(Vec3::Y, 3.1415 / 2.0),
+        inv_mass: 1.0,
+        elasticity: 1.0,
+        friction: 1.0,
+        shape: limb_shape.clone(),
+        ..Body::default()
+    });
 
-    let left_leg_handle = bodies.add_with_color(
-        Body {
-            position: Vec3::new(0.0, 2.5, 1.0) + offset,
-            orientation: Quat::from_axis_angle(Vec3::Z, 3.1415 / 2.0),
-            inv_mass: 1.0,
-            elasticity: 1.0,
-            friction: 1.0,
-            shape: limb_shape.clone(),
-            ..Body::default()
-        },
-        color,
-    );
+    let left_leg_handle = bodies.add(Body {
+        position: Vec3::new(0.0, 2.5, 1.0) + offset,
+        orientation: Quat::from_axis_angle(Vec3::Z, 3.1415 / 2.0),
+        inv_mass: 1.0,
+        elasticity: 1.0,
+        friction: 1.0,
+        shape: limb_shape.clone(),
+        ..Body::default()
+    });
 
-    let right_leg_handle = bodies.add_with_color(
-        Body {
-            position: Vec3::new(0.0, 2.5, -1.0) + offset,
-            orientation: Quat::from_axis_angle(Vec3::Z, 3.1415 / 2.0),
-            inv_mass: 1.0,
-            elasticity: 1.0,
-            friction: 1.0,
-            shape: limb_shape.clone(),
-            ..Body::default()
-        },
-        color,
-    );
+    let right_leg_handle = bodies.add(Body {
+        position: Vec3::new(0.0, 2.5, -1.0) + offset,
+        orientation: Quat::from_axis_angle(Vec3::Z, 3.1415 / 2.0),
+        inv_mass: 1.0,
+        elasticity: 1.0,
+        friction: 1.0,
+        shape: limb_shape.clone(),
+        ..Body::default()
+    });
 
     // neck
     {
@@ -462,6 +451,8 @@ fn add_rag_doll(bodies: &mut BodyArena, constraints: &mut ConstraintArena, offse
             torso_body.orientation.inverse() * Vec3::Z,
         );
     }
+
+    bodies.pop_color();
 }
 
 #[allow(dead_code)]
@@ -480,6 +471,8 @@ fn add_motor_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintAren
     ];
 
     let color = rgb_to_vec3(0xff6633);
+    bodies.push_color(color);
+
     let box_small = make_cube_small();
     let box_beam = make_box_from_points(&BOX_BEAM);
 
@@ -487,30 +480,24 @@ fn add_motor_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintAren
     let motor_axis = Vec3::Y;
     let motor_orient = Quat::from_xyzw(1.0, 0.0, 0.0, 0.0);
 
-    let handle_a = bodies.add_with_color(
-        Body {
-            position: motor_pos,
-            inv_mass: 0.0,
-            elasticity: 0.9,
-            friction: 0.5,
-            shape: box_small,
-            ..Body::default()
-        },
-        color,
-    );
+    let handle_a = bodies.add(Body {
+        position: motor_pos,
+        inv_mass: 0.0,
+        elasticity: 0.9,
+        friction: 0.5,
+        shape: box_small,
+        ..Body::default()
+    });
 
-    let handle_b = bodies.add_with_color(
-        Body {
-            position: motor_pos - motor_axis,
-            orientation: motor_orient,
-            inv_mass: 0.01,
-            elasticity: 1.0,
-            friction: 0.5,
-            shape: box_beam,
-            ..Body::default()
-        },
-        color,
-    );
+    let handle_b = bodies.add(Body {
+        position: motor_pos - motor_axis,
+        orientation: motor_orient,
+        inv_mass: 0.01,
+        elasticity: 1.0,
+        friction: 0.5,
+        shape: box_beam,
+        ..Body::default()
+    });
 
     let body_a = bodies.get_body(handle_a);
 
@@ -523,17 +510,16 @@ fn add_motor_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintAren
         2.0,
     );
 
-    bodies.add_with_color(
-        Body {
-            position: motor_pos + Vec3::new(2.0, 2.0, 0.0),
-            inv_mass: 1.0,
-            elasticity: 0.1,
-            friction: 0.9,
-            shape: make_sphere(1.0),
-            ..Body::default()
-        },
-        color,
-    );
+    bodies.add(Body {
+        position: motor_pos + Vec3::new(2.0, 2.0, 0.0),
+        inv_mass: 1.0,
+        elasticity: 0.1,
+        friction: 0.9,
+        shape: make_sphere(1.0),
+        ..Body::default()
+    });
+
+    bodies.pop_color();
 }
 
 #[allow(dead_code)]
@@ -552,111 +538,97 @@ fn add_mover_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintAren
     ];
 
     let color = rgb_to_vec3(0xfdfd97);
+    bodies.push_color(color);
+
     let box_platform = make_box_from_points(&BOX_PLATFORM);
-    let handle_a = bodies.add_with_color(
-        Body {
-            position: Vec3::new(10.0, 5.0, 0.0),
-            inv_mass: 0.0,
-            elasticity: 0.1,
-            friction: 0.9,
-            shape: box_platform,
-            ..Body::default()
-        },
-        color,
-    );
+    let handle_a = bodies.add(Body {
+        position: Vec3::new(10.0, 5.0, 0.0),
+        inv_mass: 0.0,
+        elasticity: 0.1,
+        friction: 0.9,
+        shape: box_platform,
+        ..Body::default()
+    });
 
     constraints.add_constraint_mover(bodies, handle_a);
 
-    bodies.add_with_color(
-        Body {
-            position: Vec3::new(10.0, 6.3, 0.0),
-            inv_mass: 1.0,
-            elasticity: 0.1,
-            friction: 0.9,
-            shape: make_cube_unit(),
-            ..Body::default()
-        },
-        color,
-    );
+    bodies.add(Body {
+        position: Vec3::new(10.0, 6.3, 0.0),
+        inv_mass: 1.0,
+        elasticity: 0.1,
+        friction: 0.9,
+        shape: make_cube_unit(),
+        ..Body::default()
+    });
+
+    bodies.pop_color();
 }
 
 #[allow(dead_code)]
 fn add_standard_sandbox(bodies: &mut BodyArena) {
-    let wall_color = Vec3::splat(0.5);
-
     let box_ground = make_box_ground();
     let box_wall0 = make_box_wall0();
     let box_wall1 = make_box_wall1();
 
-    bodies.add_with_color(
-        Body {
-            position: Vec3::ZERO,
-            orientation: Quat::IDENTITY,
-            linear_velocity: Vec3::ZERO,
-            angular_velocity: Vec3::ZERO,
-            inv_mass: 0.0,
-            elasticity: 0.5,
-            friction: 0.5,
-            shape: box_ground,
-        },
-        Vec3::new(0.3, 0.5, 0.3),
-    );
+    bodies.add(Body {
+        position: Vec3::ZERO,
+        orientation: Quat::IDENTITY,
+        linear_velocity: Vec3::ZERO,
+        angular_velocity: Vec3::ZERO,
+        inv_mass: 0.0,
+        elasticity: 0.5,
+        friction: 0.5,
+        shape: box_ground,
+    });
 
-    bodies.add_with_color(
-        Body {
-            position: Vec3::new(50.0, 0.0, 0.0),
-            orientation: Quat::IDENTITY,
-            linear_velocity: Vec3::ZERO,
-            angular_velocity: Vec3::ZERO,
-            inv_mass: 0.0,
-            elasticity: 0.5,
-            friction: 0.0,
-            shape: box_wall0.clone(),
-        },
-        wall_color,
-    );
+    let wall_color = Vec3::splat(0.5);
+    bodies.push_color(wall_color);
 
-    bodies.add_with_color(
-        Body {
-            position: Vec3::new(-50.0, 0.0, 0.0),
-            orientation: Quat::IDENTITY,
-            linear_velocity: Vec3::ZERO,
-            angular_velocity: Vec3::ZERO,
-            inv_mass: 0.0,
-            elasticity: 0.5,
-            friction: 0.0,
-            shape: box_wall0,
-        },
-        wall_color,
-    );
+    bodies.add(Body {
+        position: Vec3::new(50.0, 0.0, 0.0),
+        orientation: Quat::IDENTITY,
+        linear_velocity: Vec3::ZERO,
+        angular_velocity: Vec3::ZERO,
+        inv_mass: 0.0,
+        elasticity: 0.5,
+        friction: 0.0,
+        shape: box_wall0.clone(),
+    });
 
-    bodies.add_with_color(
-        Body {
-            position: Vec3::new(0.0, 0.0, 25.0),
-            orientation: Quat::IDENTITY,
-            linear_velocity: Vec3::ZERO,
-            angular_velocity: Vec3::ZERO,
-            inv_mass: 0.0,
-            elasticity: 0.5,
-            friction: 0.0,
-            shape: box_wall1.clone(),
-        },
-        wall_color,
-    );
+    bodies.add(Body {
+        position: Vec3::new(-50.0, 0.0, 0.0),
+        orientation: Quat::IDENTITY,
+        linear_velocity: Vec3::ZERO,
+        angular_velocity: Vec3::ZERO,
+        inv_mass: 0.0,
+        elasticity: 0.5,
+        friction: 0.0,
+        shape: box_wall0,
+    });
 
-    bodies.add_with_color(
-        Body {
-            position: Vec3::new(0.0, 0.0, -25.0),
-            orientation: Quat::IDENTITY,
-            linear_velocity: Vec3::ZERO,
-            angular_velocity: Vec3::ZERO,
-            inv_mass: 0.0,
-            elasticity: 0.5,
-            friction: 0.0,
-            shape: box_wall1,
-        },
-        wall_color,
-    );
+    bodies.add(Body {
+        position: Vec3::new(0.0, 0.0, 25.0),
+        orientation: Quat::IDENTITY,
+        linear_velocity: Vec3::ZERO,
+        angular_velocity: Vec3::ZERO,
+        inv_mass: 0.0,
+        elasticity: 0.5,
+        friction: 0.0,
+        shape: box_wall1.clone(),
+    });
+
+    bodies.add(Body {
+        position: Vec3::new(0.0, 0.0, -25.0),
+        orientation: Quat::IDENTITY,
+        linear_velocity: Vec3::ZERO,
+        angular_velocity: Vec3::ZERO,
+        inv_mass: 0.0,
+        elasticity: 0.5,
+        friction: 0.0,
+        shape: box_wall1,
+    });
+
+    bodies.pop_color();
 }
 
 fn resolve_contact(bodies: &mut BodyArena, contact: &Contact) {

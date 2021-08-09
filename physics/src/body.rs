@@ -16,6 +16,7 @@ pub struct BodyArena {
     bodies: Vec<Body>,
     handles: Vec<BodyHandle>,
     colors: Vec<Vec3>,
+    color_stack: Vec<Vec3>,
 }
 
 impl Default for BodyArena {
@@ -30,11 +31,25 @@ impl BodyArena {
             bodies: Vec::new(),
             handles: Vec::new(),
             colors: Vec::new(),
+            color_stack: Vec::new(),
         }
     }
 
+    pub fn push_color(&mut self, rgb: Vec3) {
+        self.color_stack.push(rgb)
+    }
+
+    pub fn pop_color(&mut self) {
+        self.color_stack.pop();
+    }
+
     pub fn add(&mut self, body: Body) -> BodyHandle {
-        self.add_with_color(body, Vec3::new(0.3, 0.5, 0.3))
+        let rgb = if self.color_stack.is_empty() {
+            Vec3::new(0.3, 0.5, 0.3)
+        } else {
+            self.color_stack[self.color_stack.len() - 1]
+        };
+        self.add_with_color(body, rgb)
     }
 
     pub fn add_with_color(&mut self, body: Body, rgb: Vec3) -> BodyHandle {
