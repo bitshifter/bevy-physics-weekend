@@ -570,18 +570,21 @@ fn add_standard_sandbox(bodies: &mut BodyArena) {
     let box_wall0 = make_box_wall0();
     let box_wall1 = make_box_wall1();
 
-    bodies.add(Body {
-        position: Vec3::ZERO,
-        orientation: Quat::IDENTITY,
-        linear_velocity: Vec3::ZERO,
-        angular_velocity: Vec3::ZERO,
-        inv_mass: 0.0,
-        elasticity: 0.5,
-        friction: 0.5,
-        shape: box_ground,
-    });
+    bodies.add_with_color(
+        Body {
+            position: Vec3::ZERO,
+            orientation: Quat::IDENTITY,
+            linear_velocity: Vec3::ZERO,
+            angular_velocity: Vec3::ZERO,
+            inv_mass: 0.0,
+            elasticity: 0.5,
+            friction: 0.5,
+            shape: box_ground,
+        },
+        rgb_to_vec3(0xccb299),
+    );
 
-    let wall_color = Vec3::splat(0.5);
+    let wall_color = rgb_to_vec3(0x7f7f7f);
     bodies.push_color(wall_color);
 
     bodies.add(Body {
