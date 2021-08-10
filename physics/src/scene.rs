@@ -9,13 +9,6 @@ use crate::{
 };
 use glam::{const_vec3, Quat, Vec3};
 
-fn rgb_to_vec3(rgb: u32) -> Vec3 {
-    let r = (rgb >> 16) & 0xff;
-    let g = (rgb >> 8) & 0xff;
-    let b = rgb & 0xff;
-    Vec3::new(r as f32, g as f32, b as f32) / 255.0
-}
-
 #[allow(dead_code)]
 fn add_sphere(bodies: &mut BodyArena) {
     bodies.add(Body {
@@ -114,7 +107,6 @@ fn add_dynamic_balls(bodies: &mut BodyArena) {
 
 #[allow(dead_code)]
 fn add_distance_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
-    bodies.push_color(rgb_to_vec3(0xf3b0c3));
     let cube_shape = make_cube_small();
 
     let handle_a = bodies.add(Body {
@@ -140,15 +132,10 @@ fn add_distance_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintA
     });
 
     constraints.add_distance_constraint(bodies, handle_a, handle_b);
-
-    bodies.pop_color()
 }
 
 #[allow(dead_code)]
 fn add_box_chain(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
-    let color = rgb_to_vec3(0xcc99c9);
-    bodies.push_color(color);
-
     let cube_shape = make_cube_small();
 
     let mut handle_a = bodies.add(Body {
@@ -178,17 +165,11 @@ fn add_box_chain(bodies: &mut BodyArena, constraints: &mut ConstraintArena) {
 
         handle_a = handle_b;
     }
-
-    bodies.pop_color()
 }
 
 #[allow(dead_code)]
 fn add_box_stack(bodies: &mut BodyArena) {
     let cube_shape = make_cube_unit();
-
-    let color = rgb_to_vec3(0x9ec1cf);
-    bodies.push_color(color);
-
     let x = 0;
     let z = 0;
     const STACK_HEIGHT: usize = 5;
@@ -213,8 +194,6 @@ fn add_box_stack(bodies: &mut BodyArena) {
             ..Body::default()
         });
     }
-
-    bodies.pop_color()
 }
 
 #[allow(dead_code)]
@@ -324,9 +303,6 @@ fn add_rag_doll(bodies: &mut BodyArena, constraints: &mut ConstraintArena, offse
         const_vec3!([-H3, H2, H2]),
         const_vec3!([H3, H2, H2]),
     ];
-
-    let color = rgb_to_vec3(0xfeb144);
-    bodies.push_color(color);
 
     let head_shape = make_cube_small();
     let torso_shape = make_box_from_points(&BOX_TORSO);
@@ -451,8 +427,6 @@ fn add_rag_doll(bodies: &mut BodyArena, constraints: &mut ConstraintArena, offse
             torso_body.orientation.inverse() * Vec3::Z,
         );
     }
-
-    bodies.pop_color();
 }
 
 #[allow(dead_code)]
@@ -469,9 +443,6 @@ fn add_motor_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintAren
         const_vec3!([-L, T, T]),
         const_vec3!([L, T, T]),
     ];
-
-    let color = rgb_to_vec3(0xff6633);
-    bodies.push_color(color);
 
     let box_small = make_cube_small();
     let box_beam = make_box_from_points(&BOX_BEAM);
@@ -518,8 +489,6 @@ fn add_motor_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintAren
         shape: make_sphere(1.0),
         ..Body::default()
     });
-
-    bodies.pop_color();
 }
 
 #[allow(dead_code)]
@@ -536,9 +505,6 @@ fn add_mover_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintAren
         const_vec3!([-L, T, L]),
         const_vec3!([L, T, L]),
     ];
-
-    let color = rgb_to_vec3(0xfdfd97);
-    bodies.push_color(color);
 
     let box_platform = make_box_from_points(&BOX_PLATFORM);
     let handle_a = bodies.add(Body {
@@ -560,8 +526,6 @@ fn add_mover_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintAren
         shape: make_cube_unit(),
         ..Body::default()
     });
-
-    bodies.pop_color();
 }
 
 #[allow(dead_code)]
@@ -570,22 +534,16 @@ fn add_standard_sandbox(bodies: &mut BodyArena) {
     let box_wall0 = make_box_wall0();
     let box_wall1 = make_box_wall1();
 
-    bodies.add_with_color(
-        Body {
-            position: Vec3::ZERO,
-            orientation: Quat::IDENTITY,
-            linear_velocity: Vec3::ZERO,
-            angular_velocity: Vec3::ZERO,
-            inv_mass: 0.0,
-            elasticity: 0.5,
-            friction: 0.5,
-            shape: box_ground,
-        },
-        rgb_to_vec3(0xccb299),
-    );
-
-    let wall_color = rgb_to_vec3(0x7f7f7f);
-    bodies.push_color(wall_color);
+    bodies.add(Body {
+        position: Vec3::ZERO,
+        orientation: Quat::IDENTITY,
+        linear_velocity: Vec3::ZERO,
+        angular_velocity: Vec3::ZERO,
+        inv_mass: 0.0,
+        elasticity: 0.5,
+        friction: 0.5,
+        shape: box_ground,
+    });
 
     bodies.add(Body {
         position: Vec3::new(50.0, 0.0, 0.0),
@@ -630,8 +588,6 @@ fn add_standard_sandbox(bodies: &mut BodyArena) {
         friction: 0.0,
         shape: box_wall1,
     });
-
-    bodies.pop_color();
 }
 
 fn resolve_contact(bodies: &mut BodyArena, contact: &Contact) {
@@ -858,10 +814,6 @@ impl PhysicsScene {
 
     pub fn get_body(&self, handle: BodyHandle) -> &Body {
         self.bodies.get_body(handle)
-    }
-
-    pub fn get_body_with_color(&self, handle: BodyHandle) -> (&Body, Vec3) {
-        self.bodies.get_body_with_color(handle)
     }
 
     pub fn iter_body_handles(&self) -> core::slice::Iter<BodyHandle> {

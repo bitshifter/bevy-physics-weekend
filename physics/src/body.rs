@@ -15,8 +15,6 @@ impl Default for BodyHandle {
 pub struct BodyArena {
     bodies: Vec<Body>,
     handles: Vec<BodyHandle>,
-    colors: Vec<Vec3>,
-    color_stack: Vec<Vec3>,
 }
 
 impl Default for BodyArena {
@@ -30,33 +28,13 @@ impl BodyArena {
         BodyArena {
             bodies: Vec::new(),
             handles: Vec::new(),
-            colors: Vec::new(),
-            color_stack: Vec::new(),
         }
     }
 
-    pub fn push_color(&mut self, rgb: Vec3) {
-        self.color_stack.push(rgb)
-    }
-
-    pub fn pop_color(&mut self) {
-        self.color_stack.pop();
-    }
-
     pub fn add(&mut self, body: Body) -> BodyHandle {
-        let rgb = if self.color_stack.is_empty() {
-            Vec3::new(0.3, 0.5, 0.3)
-        } else {
-            self.color_stack[self.color_stack.len() - 1]
-        };
-        self.add_with_color(body, rgb)
-    }
-
-    pub fn add_with_color(&mut self, body: Body, rgb: Vec3) -> BodyHandle {
         let handle = BodyHandle(self.bodies.len() as u32);
         self.bodies.push(body);
         self.handles.push(handle);
-        self.colors.push(rgb);
         handle
     }
 
@@ -71,7 +49,6 @@ impl BodyArena {
     pub fn clear(&mut self) {
         self.bodies.clear();
         self.handles.clear();
-        self.colors.clear();
     }
 
     pub fn len(&self) -> usize {
@@ -122,19 +99,8 @@ impl BodyArena {
         &self.bodies[handle.0 as usize]
     }
 
-    pub fn get_body_with_color(&self, handle: BodyHandle) -> (&Body, Vec3) {
-        (
-            &self.bodies[handle.0 as usize],
-            self.colors[handle.0 as usize],
-        )
-    }
-
     pub fn handles(&self) -> &Vec<BodyHandle> {
         &self.handles
-    }
-
-    pub fn get_color(&self, handle: BodyHandle) -> Vec3 {
-        self.colors[handle.0 as usize]
     }
 
     pub fn print_bodies(&self, step_num: u64, delta_seconds: f32) {
