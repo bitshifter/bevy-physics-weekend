@@ -22,7 +22,7 @@ dependencies = [
 [[package]]
 name = "glam"
 version = "0.17.3"
-source = "git+https://github.com/bitshifter/glam-rs#9214e78eb9d176fccd9933e7646ef67f0ddd44ee"
+source = "git+https://github.com/bitshifter/glam-rs#82aaf56de5e0b125aa5d6eb4673dda2bfe6d8bfe"
 dependencies = [
  "serde",
 ]
