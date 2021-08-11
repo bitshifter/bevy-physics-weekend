@@ -353,8 +353,7 @@ dependencies = [
 [[package]]
 name = "bevy_flycam"
 version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf85700564f15ae65430722ad217f8b343278179098707627805d4e26f6d28b7"
+source = "git+http://github.com/bitshifter/bevy_flycam#f095d4f0af25b95a036d9f95d5ef71e66a998de3"
 dependencies = [
  "bevy",
 ]

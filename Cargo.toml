@@ -12,3 +12,4 @@ physics = { path = "physics" }
 # patch bevy 0.5.0 to use latest version of glam
 [patch.crates-io]
 bevy = { git = "http://github.com/bitshifter/bevy", branch = "latest+glam-git" }
+bevy_flycam = { git = "http://github.com/bitshifter/bevy_flycam" }
