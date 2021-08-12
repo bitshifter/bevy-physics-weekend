@@ -1,5 +1,7 @@
 # Game Physics in a Weekend (in Rust)
 
+![Screenshot](screenshot.png)
+
 This project is an implementation of the [Game Physics in a Weekend] book using
 the [Rust] programming language and the [Bevy] game engine.
 
