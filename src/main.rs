@@ -125,14 +125,16 @@ fn setup_rendering(
 }
 
 fn main() {
-    App::build()
-        .insert_resource(Msaa { samples: 4 })
-        .insert_resource(PhysicsScene::new())
-        .insert_resource(TimeAccumulator::new())
-        .add_plugins(DefaultPlugins)
-        .add_plugin(PlayerPlugin)
-        .add_startup_system(setup_rendering.system())
-        .add_system(physics_update_system.system())
-        .add_system(copy_transforms_system.system())
-        .run();
+    let mut app = App::build();
+    app.insert_resource(Msaa { samples: 4 });
+    app.insert_resource(PhysicsScene::new());
+    app.insert_resource(TimeAccumulator::new());
+    app.add_plugins(DefaultPlugins);
+    app.add_plugin(PlayerPlugin);
+    #[cfg(target_arch = "wasm32")]
+    app.add_plugin(bevy_webgl2::WebGL2Plugin);
+    app.add_startup_system(setup_rendering.system());
+    app.add_system(physics_update_system.system());
+    app.add_system(copy_transforms_system.system());
+    app.run();
 }
