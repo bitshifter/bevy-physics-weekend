@@ -82,7 +82,8 @@ fn copy_transforms_system(
     }
 }
 
-fn setup_rendering(
+#[cfg(not(target_arch = "wasm32"))]
+fn setup_rendering_native(
     mut commands: Commands,
     asset_server: ResMut<AssetServer>,
     mut pipelines: ResMut<Assets<PipelineDescriptor>>,
@@ -124,6 +125,40 @@ fn setup_rendering(
     }
 }
 
+#[cfg(target_arch = "wasm32")]
+fn setup_rendering_wasm(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    physics_scene: Res<PhysicsScene>,
+) {
+    commands.spawn_bundle(LightBundle {
+        light: Light {
+            fov: f32::to_radians(75.0),
+            ..Light::default()
+        },
+        transform: Transform::from_translation(Vec3::new(4.0, 8.0, 4.0)),
+        ..Default::default()
+    });
+
+    for &body_handle in physics_scene.iter_body_handles() {
+        let body = physics_scene.get_body(body_handle);
+        let color = if body.has_infinite_mass() {
+            Color::rgb(0.3, 0.5, 0.3)
+        } else {
+            Color::rgb(0.8, 0.7, 0.6)
+        };
+        let mesh = meshes.add(render::create_mesh_from_shape(body.shape.borrow()));
+        commands
+            .spawn_bundle(PbrBundle {
+                mesh,
+                material: materials.add(color.into()),
+                ..Default::default()
+            })
+            .insert(body_handle);
+    }
+}
+
 fn main() {
     let mut app = App::build();
     app.insert_resource(Msaa { samples: 4 });
@@ -133,7 +168,10 @@ fn main() {
     app.add_plugin(PlayerPlugin);
     #[cfg(target_arch = "wasm32")]
     app.add_plugin(bevy_webgl2::WebGL2Plugin);
-    app.add_startup_system(setup_rendering.system());
+    #[cfg(target_arch = "wasm32")]
+    app.add_startup_system(setup_rendering_wasm.system());
+    #[cfg(not(target_arch = "wasm32"))]
+    app.add_startup_system(setup_rendering_native.system());
     app.add_system(physics_update_system.system());
     app.add_system(copy_transforms_system.system());
     app.run();
