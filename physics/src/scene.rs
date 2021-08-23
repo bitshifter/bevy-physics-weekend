@@ -694,31 +694,31 @@ impl PhysicsScene {
 
         // add_distance_constraint(&mut self.bodies, &mut self.constraints);
 
-        // add_rag_doll(
-        //     &mut self.bodies,
-        //     &mut self.constraints,
-        //     Vec3::new(-5.0, 0.0, 0.0),
-        // );
+        add_rag_doll(
+            &mut self.bodies,
+            &mut self.constraints,
+            Vec3::new(-5.0, 0.0, 0.0),
+        );
 
         add_box_chain(&mut self.bodies, &mut self.constraints);
 
-        // add_box_stack(&mut self.bodies);
+        add_box_stack(&mut self.bodies);
 
-        // add_sphere(&mut self.bodies);
+        add_sphere(&mut self.bodies);
 
         // add_convex_hull(&mut self.bodies);
 
-        // add_motor_constraint(&mut self.bodies, &mut self.constraints);
+        add_motor_constraint(&mut self.bodies, &mut self.constraints);
 
-        // add_mover_constraint(&mut self.bodies, &mut self.constraints);
+        add_mover_constraint(&mut self.bodies, &mut self.constraints);
 
-        // add_hinge_constraint(&mut self.bodies, &mut self.constraints);
+        add_hinge_constraint(&mut self.bodies, &mut self.constraints);
 
-        // add_constant_velocity_constraint(&mut self.bodies, &mut self.constraints);
+        add_constant_velocity_constraint(&mut self.bodies, &mut self.constraints);
 
         // add_teleportation_fix(&mut self.bodies);
 
-        // add_orientation_constraint(&mut self.bodies, &mut self.constraints);
+        add_orientation_constraint(&mut self.bodies, &mut self.constraints);
 
         add_standard_sandbox(&mut self.bodies);
 

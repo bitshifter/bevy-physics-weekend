@@ -1,4 +1,5 @@
 mod render;
+mod shaders;
 mod time_accumulator;
 
 use bevy::{
@@ -91,16 +92,16 @@ fn setup_rendering_native(
     mut commands: Commands,
     asset_server: ResMut<AssetServer>,
     mut pipelines: ResMut<Assets<PipelineDescriptor>>,
+    shaders: ResMut<Assets<Shader>>,
     mut meshes: ResMut<Assets<Mesh>>,
     physics_scene: Res<PhysicsScene>,
 ) {
-    // watch for changes
-    asset_server.watch_for_changes().unwrap();
+    let (vertex, fragment) = shaders::load_shaders(asset_server, shaders);
 
     // Create a new shader pipeline
     let pipeline_handle = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
-        vertex: asset_server.load::<Shader, _>("shaders/checkerboard.vert"),
-        fragment: Some(asset_server.load::<Shader, _>("shaders/checkerboard.frag")),
+        vertex,
+        fragment: Some(fragment),
     }));
 
     commands.spawn_bundle(LightBundle {
@@ -163,11 +164,7 @@ fn setup_rendering_wasm(
     }
 }
 
-fn egui_window(
-    time: Res<Time>,
-    diagnostics: Res<Diagnostics>,
-    egui_context: Res<EguiContext>
-) {
+fn egui_window(time: Res<Time>, diagnostics: Res<Diagnostics>, egui_context: Res<EguiContext>) {
     egui::Window::new("Physics Demo").show(egui_context.ctx(), |ui| {
         let mut fps = 0.0;
         if let Some(fps_diagnostic) = diagnostics.get(FrameTimeDiagnosticsPlugin::FPS) {
@@ -185,7 +182,6 @@ fn egui_window(
         }
         ui.label(format!("avg fps: {:.1}", fps));
         ui.label(format!("avg frame/ms: {:.3}", frame_time * 1000.0));
-
     });
 }
 
