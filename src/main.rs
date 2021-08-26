@@ -3,12 +3,13 @@ mod shaders;
 mod time_accumulator;
 
 use bevy::{
-    diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
+    diagnostic::{Diagnostic, DiagnosticId, Diagnostics, FrameTimeDiagnosticsPlugin},
     prelude::*,
     render::{
         pipeline::{PipelineDescriptor, RenderPipeline},
         shader::ShaderStages,
     },
+    utils::Instant,
 };
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use bevy_flycam::PlayerPlugin;
@@ -19,12 +20,23 @@ use time_accumulator::TimeAccumulator;
 #[cfg(target_arch = "wasm32")]
 use console_error_panic_hook;
 
+const PHYSICS_UPDATE_TIME: DiagnosticId =
+    DiagnosticId::from_u128(337040787172757619024841343456040760896);
+
+fn setup_diagnostic_system(mut diagnostics: ResMut<Diagnostics>) {
+    diagnostics
+        .add(Diagnostic::new(PHYSICS_UPDATE_TIME, "physics_update_time", 20).with_suffix("s"));
+}
+
 fn physics_update_system(
     keys: Res<Input<KeyCode>>,
     time: Res<Time>,
     mut accum: ResMut<TimeAccumulator>,
     mut scene: ResMut<PhysicsScene>,
+    mut diagnostics: ResMut<Diagnostics>,
 ) {
+    let now = Instant::now();
+
     // T pauses the sim
     if keys.just_released(KeyCode::T) {
         scene.paused = !scene.paused;
@@ -74,6 +86,9 @@ fn physics_update_system(
             scene.update(step_secs * 0.5);
         }
     }
+
+    let elapsed = Instant::now().duration_since(now);
+    diagnostics.add_measurement(PHYSICS_UPDATE_TIME, elapsed.as_secs_f64());
 }
 
 fn copy_transforms_system(
@@ -164,24 +179,33 @@ fn setup_rendering_wasm(
     }
 }
 
+fn get_diagnostic_average(
+    diagnostics: &Diagnostics,
+    diagnostic_id: DiagnosticId,
+    default: f64,
+) -> f64 {
+    if let Some(diagnostic) = diagnostics.get(diagnostic_id) {
+        if let Some(avg) = diagnostic.average() {
+            return avg;
+        }
+    }
+    return default;
+}
+
 fn egui_window(time: Res<Time>, diagnostics: Res<Diagnostics>, egui_context: Res<EguiContext>) {
     egui::Window::new("Physics Demo").show(egui_context.ctx(), |ui| {
-        let mut fps = 0.0;
-        if let Some(fps_diagnostic) = diagnostics.get(FrameTimeDiagnosticsPlugin::FPS) {
-            if let Some(fps_avg) = fps_diagnostic.average() {
-                fps = fps_avg;
-            }
-        }
+        let fps = get_diagnostic_average(&diagnostics, FrameTimeDiagnosticsPlugin::FPS, 0.0);
+        let frame_time = get_diagnostic_average(
+            &diagnostics,
+            FrameTimeDiagnosticsPlugin::FRAME_TIME,
+            time.delta_seconds_f64(),
+        );
 
-        let mut frame_time = time.delta_seconds_f64();
-        if let Some(frame_time_diagnostic) = diagnostics.get(FrameTimeDiagnosticsPlugin::FRAME_TIME)
-        {
-            if let Some(frame_time_avg) = frame_time_diagnostic.average() {
-                frame_time = frame_time_avg;
-            }
-        }
+        let physics_time = get_diagnostic_average(&diagnostics, PHYSICS_UPDATE_TIME, 0.0);
+
         ui.label(format!("avg fps: {:.1}", fps));
         ui.label(format!("avg frame/ms: {:.3}", frame_time * 1000.0));
+        ui.label(format!("avg physics/ms: {:.3}", physics_time * 1000.0));
     });
 }
 
@@ -203,6 +227,7 @@ fn main() {
     app.add_startup_system(setup_rendering_wasm.system());
     #[cfg(not(target_arch = "wasm32"))]
     app.add_startup_system(setup_rendering_native.system());
+    app.add_startup_system(setup_diagnostic_system.system());
     app.add_system(physics_update_system.system());
     app.add_system(copy_transforms_system.system());
     app.add_system(egui_window.system());
