@@ -12,7 +12,7 @@ use bevy::{
     utils::Instant,
 };
 use bevy_egui::{egui, EguiContext, EguiPlugin};
-use bevy_flycam::PlayerPlugin;
+use bevy_flycam::{FlyCam, NoCameraPlayerPlugin};
 use physics::{body::BodyHandle, scene::PhysicsScene};
 use std::borrow::Borrow;
 use time_accumulator::TimeAccumulator;
@@ -209,6 +209,17 @@ fn egui_window(time: Res<Time>, diagnostics: Res<Diagnostics>, egui_context: Res
     });
 }
 
+/// Spawns the `Camera3dBundle` to be controlled
+fn setup_player(mut commands: Commands) {
+    commands
+        .spawn_bundle(PerspectiveCameraBundle {
+            transform: Transform::from_xyz(0.0, 10.0, 20.0)
+                .looking_at(Vec3::new(0.0, 5.0, 0.0), Vec3::Y),
+            ..Default::default()
+        })
+        .insert(FlyCam);
+}
+
 fn main() {
     #[cfg(target_arch = "wasm32")]
     console_error_panic_hook::set_once();
@@ -219,7 +230,7 @@ fn main() {
     app.insert_resource(TimeAccumulator::new());
     app.add_plugins(DefaultPlugins);
     app.add_plugin(FrameTimeDiagnosticsPlugin);
-    app.add_plugin(PlayerPlugin);
+    app.add_plugin(NoCameraPlayerPlugin);
     app.add_plugin(EguiPlugin);
     #[cfg(target_arch = "wasm32")]
     app.add_plugin(bevy_webgl2::WebGL2Plugin);
@@ -228,6 +239,7 @@ fn main() {
     #[cfg(not(target_arch = "wasm32"))]
     app.add_startup_system(setup_rendering_native.system());
     app.add_startup_system(setup_diagnostic_system.system());
+    app.add_startup_system(setup_player.system());
     app.add_system(physics_update_system.system());
     app.add_system(copy_transforms_system.system());
     app.add_system(egui_window.system());
