@@ -25,11 +25,11 @@ bevy = { version = "0.5.0", default-features = false }
 bevy_egui = "0.6"
 bevy_flycam = "0.5.1"
 bevy_webgl2 = { version = "0.5.0", optional = true }
-console_error_panic_hook = "0.1"
+# console_error_panic_hook = "0.1"
 physics = { path = "physics" }
 winit = "0.24.0"
 rand = "0.7"
-getrandom = { version = "0.1", features = ["wasm-bindgen"] }
+# getrandom = { version = "0.2", features = ["wasm-bindgen"] }
 
 # patch bevy 0.5.0 to use latest version of glam
 [patch.crates-io]

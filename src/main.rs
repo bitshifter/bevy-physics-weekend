@@ -17,8 +17,8 @@ use physics::{body::BodyHandle, scene::PhysicsScene};
 use std::borrow::Borrow;
 use time_accumulator::TimeAccumulator;
 
-#[cfg(target_arch = "wasm32")]
-use console_error_panic_hook;
+// #[cfg(target_arch = "wasm32")]
+// use console_error_panic_hook;
 
 const PHYSICS_UPDATE_TIME: DiagnosticId =
     DiagnosticId::from_u128(337040787172757619024841343456040760896);
@@ -221,8 +221,8 @@ fn setup_player(mut commands: Commands) {
 }
 
 fn main() {
-    #[cfg(target_arch = "wasm32")]
-    console_error_panic_hook::set_once();
+    // #[cfg(target_arch = "wasm32")]
+    // console_error_panic_hook::set_once();
 
     let mut app = App::build();
     app.insert_resource(Msaa { samples: 4 });
