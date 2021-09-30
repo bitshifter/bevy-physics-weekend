@@ -6,9 +6,9 @@ edition = "2018"
 
 [features]
 default = [
-  "bevy/bevy_gltf",
   "bevy/bevy_winit",
   "bevy/render",
+  "bevy/bevy_gltf",
   "bevy/png",
 ]
 
@@ -17,24 +17,24 @@ native = [
 ]
 
 web = [
-  "bevy_webgl2"
+  "bevy_webgl2",
+  "winit/web-sys"
 ]
 
 [dependencies]
-bevy = { version = "0.5.0", default-features = false }
-bevy_egui = "0.6"
-bevy_flycam = "0.5.1"
-bevy_webgl2 = { version = "0.5.0", optional = true }
+bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features=false }
+bevy_egui = { git = "https://github.com/jakobhellermann/bevy_egui", branch = "bevy-main" }
+#bevy_flycam = "0.5.1"
+bevy_webgl2 = { git = "https://github.com/mrk-its/bevy_webgl2", optional = true }
 # console_error_panic_hook = "0.1"
 physics = { path = "physics" }
 winit = "0.24.0"
 rand = "0.7"
-# getrandom = { version = "0.2", features = ["wasm-bindgen"] }
 
 # patch bevy 0.5.0 to use latest version of glam
-[patch.crates-io]
-bevy = { git = "http://github.com/bitshifter/bevy", branch = "latest+glam-git" }
-bevy_flycam = { git = "http://github.com/bitshifter/bevy_flycam" }
+#[patch.crates-io]
+#bevy = { git = "http://github.com/bitshifter/bevy", branch = "main+glam-git", default-features=false }
+#bevy_flycam = { git = "http://github.com/bitshifter/bevy_flycam" }
 
 [profile.dev]
 opt-level = 1

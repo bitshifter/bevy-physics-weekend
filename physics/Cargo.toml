@@ -5,7 +5,8 @@ authors = ["Cameron Hart <cameron.hart@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-glam = { git = "https://github.com/bitshifter/glam-rs", features = ["serde", "debug-glam-assert"] }
+#glam = { git = "https://github.com/bitshifter/glam-rs", features = ["serde", "debug-glam-assert"] }
+glam = { version = "0.18", features = ["serde", "debug-glam-assert"] }
 rand = "0.8"
 rand_pcg = "0.3"
 serde = "1.0"

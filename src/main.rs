@@ -1,3 +1,4 @@
+mod flycam;
 mod render;
 mod shaders;
 mod time_accumulator;
@@ -12,7 +13,7 @@ use bevy::{
     utils::Instant,
 };
 use bevy_egui::{egui, EguiContext, EguiPlugin};
-use bevy_flycam::{FlyCam, NoCameraPlayerPlugin};
+use flycam::{FlyCam, NoCameraPlayerPlugin};
 use physics::{body::BodyHandle, scene::PhysicsScene};
 use std::borrow::Borrow;
 use time_accumulator::TimeAccumulator;
@@ -119,11 +120,7 @@ fn setup_rendering_native(
         fragment: Some(fragment),
     }));
 
-    commands.spawn_bundle(LightBundle {
-        light: Light {
-            fov: f32::to_radians(75.0),
-            ..Light::default()
-        },
+    commands.spawn_bundle(PointLightBundle {
         transform: Transform::from_translation(Vec3::new(4.0, 8.0, 4.0)),
         ..Default::default()
     });
@@ -152,11 +149,7 @@ fn setup_rendering_wasm(
     mut materials: ResMut<Assets<StandardMaterial>>,
     physics_scene: Res<PhysicsScene>,
 ) {
-    commands.spawn_bundle(LightBundle {
-        light: Light {
-            fov: f32::to_radians(75.0),
-            ..Light::default()
-        },
+    commands.spawn_bundle(PointLightBundle {
         transform: Transform::from_translation(Vec3::new(4.0, 8.0, 4.0)),
         ..Default::default()
     });
@@ -224,7 +217,7 @@ fn main() {
     // #[cfg(target_arch = "wasm32")]
     // console_error_panic_hook::set_once();
 
-    let mut app = App::build();
+    let mut app = App::new();
     app.insert_resource(Msaa { samples: 4 });
     app.insert_resource(PhysicsScene::new());
     app.insert_resource(TimeAccumulator::new());
