@@ -6,6 +6,7 @@ edition = "2018"
 
 [features]
 default = [
+  "pbd",
   "bevy/bevy_winit",
   "bevy/render",
   "bevy/bevy_gltf",
@@ -27,6 +28,7 @@ bevy_egui = { git = "https://github.com/jakobhellermann/bevy_egui", branch = "be
 #bevy_flycam = "0.5.1"
 bevy_webgl2 = { git = "https://github.com/mrk-its/bevy_webgl2", optional = true }
 # console_error_panic_hook = "0.1"
+pbd = { path = "pbd", optional = true }
 physics = { path = "physics" }
 winit = "0.24.0"
 rand = "0.7"

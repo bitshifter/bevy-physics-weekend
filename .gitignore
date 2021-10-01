@@ -1,6 +1,8 @@
 /.cargo
 /.vs
 /.vscode
+/pbd/.vscode
+/pbd/target
 /physics/.vscode
 /physics/target
 /target

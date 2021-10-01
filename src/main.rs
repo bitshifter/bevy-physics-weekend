@@ -1,4 +1,5 @@
 mod flycam;
+#[cfg(not(feature = "pbd"))]
 mod render;
 mod shaders;
 mod time_accumulator;
@@ -14,8 +15,10 @@ use bevy::{
 };
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use flycam::{FlyCam, NoCameraPlayerPlugin};
+#[cfg(feature = "pbd")]
+use pbd::{BodyHandle, PhysicsScene};
+#[cfg(not(feature = "pbd"))]
 use physics::{body::BodyHandle, scene::PhysicsScene};
-use std::borrow::Borrow;
 use time_accumulator::TimeAccumulator;
 
 // #[cfg(target_arch = "wasm32")]
@@ -23,6 +26,11 @@ use time_accumulator::TimeAccumulator;
 
 const PHYSICS_UPDATE_TIME: DiagnosticId =
     DiagnosticId::from_u128(337040787172757619024841343456040760896);
+
+// trait BodyAccessor {
+//     fn position(&self) -> Vec3;
+//     fn orientation(&self) -> Quat;
+// }
 
 fn setup_diagnostic_system(mut diagnostics: ResMut<Diagnostics>) {
     diagnostics
@@ -82,10 +90,7 @@ fn physics_update_system(
 
     let step_secs = accum.step_secs();
     for _ in 0..num_steps {
-        // the game physics weekend application is doing 2 sub steps
-        for _ in 0..2 {
-            scene.update(step_secs * 0.5);
-        }
+        scene.update(step_secs);
     }
 
     let elapsed = Instant::now().duration_since(now);
@@ -98,9 +103,32 @@ fn copy_transforms_system(
 ) {
     for (&body_handle, mut transform) in query.iter_mut() {
         let body = physics_scene.get_body(body_handle);
-        transform.translation = body.position;
-        transform.rotation = body.orientation;
+        transform.translation = body.position();
+        transform.rotation = body.orientation();
     }
+}
+
+#[cfg(feature = "pbd")]
+fn create_mesh_from_body(body: &pbd::Body) -> Mesh {
+    match body.shape() {
+        &pbd::Shape::Box { size } => {
+            let extent = size * 0.5;
+            Mesh::from(shape::Box {
+                min_x: -extent.x,
+                max_x: extent.x,
+                min_y: -extent.y,
+                max_y: extent.y,
+                min_z: -extent.z,
+                max_z: extent.z,
+            })
+        }
+    }
+}
+
+#[cfg(not(feature = "pbd"))]
+fn create_mesh_from_body(body: physics::Body) -> Mesh {
+    use std::borrow::Borrow;
+    render::create_mesh_from_shape(body.shape.borrow())
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -127,8 +155,7 @@ fn setup_rendering_native(
 
     for &body_handle in physics_scene.iter_body_handles() {
         let body = physics_scene.get_body(body_handle);
-        // let base_color = Color::rgb(color.x, color.y, color.z);
-        let mesh = meshes.add(render::create_mesh_from_shape(body.shape.borrow()));
+        let mesh = meshes.add(create_mesh_from_body(body));
         commands
             .spawn_bundle(PbrBundle {
                 mesh,

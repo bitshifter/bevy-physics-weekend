@@ -666,6 +666,7 @@ pub struct PhysicsScene {
     contacts: ContactArena,
     manifolds: ManifoldCollector,
     step_num: u64,
+    num_substeps: u32,
     pub paused: bool,
 }
 
@@ -677,6 +678,7 @@ impl PhysicsScene {
             contacts: ContactArena::default(),
             manifolds: ManifoldCollector::default(),
             step_num: 0,
+            num_substeps: 2,
             paused: true,
         };
         scene.reset();
@@ -729,6 +731,13 @@ impl PhysicsScene {
     }
 
     pub fn update(&mut self, delta_seconds: f32) {
+        let dt = delta_seconds / self.num_substeps as f32;
+        for _ in 0..self.num_substeps {
+            self.simulate(dt);
+        }
+    }
+
+    fn simulate(&mut self, delta_seconds: f32) {
         self.step_num += 1;
 
         self.manifolds.remove_expired(&self.bodies);
