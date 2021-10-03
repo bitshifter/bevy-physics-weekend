@@ -443,6 +443,30 @@ struct JointData {
     twist_limit_compliance: f32,
 }
 
+impl Default for JointData {
+    fn default() -> Self {
+        Self {
+            body0: BodyHandle::INVALID,
+            body1: BodyHandle::INVALID,
+            localpose0: Pose::default(),
+            localpose1: Pose::default(),
+            globalpose0: Pose::default(),
+            globalpose1: Pose::default(),
+            compliance: 0.0,
+            rot_damping: 0.0,
+            pos_damping: 0.0,
+            has_swing_limits: false,
+            min_swing_angle: -2.0 * PI,
+            max_swing_angle: 2.0 * PI,
+            swing_limits_compliance: 0.0,
+            has_twist_limits: false,
+            min_twist_angle: -2.0 * PI,
+            max_twist_angle: 2.0 * PI,
+            twist_limit_compliance: 0.0,
+        }
+    }
+}
+
 impl JointData {
     fn update_global_poses(&mut self, bodies: &BodyArena) {
         self.globalpose0 = self.localpose0;
@@ -619,6 +643,14 @@ impl JointArena {
         Self { joints: Vec::new() }
     }
 
+    fn add(&mut self, joint: Joint) {
+        self.joints.push(joint)
+    }
+
+    fn clear(&mut self) {
+        self.joints.clear();
+    }
+
     fn solve_pos(&mut self, dt: f32, bodies: &mut BodyArena) {
         for joint in self.joints.iter_mut() {
             joint.solve_pos(dt, bodies);
@@ -635,6 +667,8 @@ impl JointArena {
 pub struct PhysicsScene {
     bodies: BodyArena,
     joints: JointArena,
+    pos_damping: f32,
+    rot_damping: f32,
     pub num_substeps: u32,
     pub paused: bool,
 }
@@ -647,16 +681,22 @@ impl Default for PhysicsScene {
 
 impl PhysicsScene {
     pub fn new() -> Self {
-        Self {
+        let mut scene = Self {
             bodies: BodyArena::new(),
             joints: JointArena::new(),
             num_substeps: 40,
+            pos_damping: 1000.0,
+            rot_damping: 1000.0,
             paused: true,
-        }
+        };
+        scene.reset();
+        scene
     }
 
     pub fn reset(&mut self) {
+        self.joints.clear();
         self.bodies.clear();
+
         let num_objects = 100;
         let objects_size = Vec3::new(0.02, 0.04, 0.02);
         let last_objects_size = Vec3::new(0.2, 0.04, 0.2);
@@ -669,6 +709,7 @@ impl PhysicsScene {
 
         let mut pose = Pose::IDENTITY;
         let mut last_body = None;
+        let mut last_body_handle = BodyHandle::INVALID;
         let mut joint_pose0 = Pose::default();
         let mut joint_pose1 = Pose::default();
         joint_pose0.q = Quat::from_axis_angle(Vec3::Z, 0.5 * core::f32::consts::PI);
@@ -685,9 +726,30 @@ impl PhysicsScene {
             pose.p = Vec3::new(pos.x, pos.y - i as f32 * objects_size.y, pos.z);
 
             let box_body = Body::new(pose, Shape::Box { size }, 1.0);
-            self.bodies.add(box_body);
+            let box_body_handle = self.bodies.add(box_body);
+
+            let s = if i & 1 == 0 { -0.5 } else { 0.5 };
+            joint_pose0.p = Vec3::new(s * size.x, 0.5 * size.y, s * size.z);
+            joint_pose1.p = Vec3::new(s * last_size.x, -0.5 * last_size.y, s * last_size.z);
+
+            if last_body.is_none() {
+                joint_pose1 = joint_pose0;
+                joint_pose1.p += pose.p;
+            }
+
+            let joint = Joint::Spherical(JointData {
+                body0: box_body_handle,
+                body1: last_body_handle,
+                localpose0: joint_pose0,
+                localpose1: joint_pose1,
+                rot_damping: self.rot_damping,
+                pos_damping: self.pos_damping,
+                ..JointData::default()
+            });
+            self.joints.add(joint);
 
             last_body = Some(box_body);
+            last_body_handle = box_body_handle;
             last_size = size;
         }
     }
