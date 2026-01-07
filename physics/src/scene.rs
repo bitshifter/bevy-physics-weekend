@@ -816,7 +816,7 @@ impl PhysicsScene {
         self.bodies.get_body(handle)
     }
 
-    pub fn iter_body_handles(&self) -> core::slice::Iter<BodyHandle> {
+    pub fn iter_body_handles(&self) -> core::slice::Iter<'_, BodyHandle> {
         self.bodies.handles().iter()
     }
 }

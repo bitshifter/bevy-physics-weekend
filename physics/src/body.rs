@@ -38,11 +38,11 @@ impl BodyArena {
         handle
     }
 
-    pub fn iter(&self) -> core::slice::Iter<Body> {
+    pub fn iter(&self) -> core::slice::Iter<'_, Body> {
         self.bodies.iter()
     }
 
-    pub fn iter_mut(&mut self) -> core::slice::IterMut<Body> {
+    pub fn iter_mut(&mut self) -> core::slice::IterMut<'_, Body> {
         self.bodies.iter_mut()
     }
 

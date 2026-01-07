@@ -49,7 +49,7 @@ impl ContactArena {
         });
     }
 
-    pub fn iter(&self) -> core::slice::Iter<Contact> {
+    pub fn iter(&self) -> core::slice::Iter<'_, Contact> {
         self.contacts.iter()
     }
 }
