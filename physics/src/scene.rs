@@ -7,7 +7,7 @@ use crate::{
     manifold::ManifoldCollector,
     scene_shapes::*,
 };
-use glam::{const_vec3, Quat, Vec3};
+use glam::{Quat, Vec3};
 
 #[allow(dead_code)]
 fn add_sphere(bodies: &mut BodyArena) {
@@ -282,26 +282,26 @@ fn add_rag_doll(bodies: &mut BodyArena, constraints: &mut ConstraintArena, offse
     const W2: f32 = T2 * 2.0;
     const H3: f32 = T2 * 4.0;
     const BOX_TORSO: [Vec3; 8] = [
-        const_vec3!([-T2, -H3, -W2]),
-        const_vec3!([T2, -H3, -W2]),
-        const_vec3!([-T2, -H3, W2]),
-        const_vec3!([T2, -H3, W2]),
-        const_vec3!([-T2, H3, -W2]),
-        const_vec3!([T2, H3, -W2]),
-        const_vec3!([-T2, H3, W2]),
-        const_vec3!([T2, H3, W2]),
+        Vec3::new(-T2, -H3, -W2),
+        Vec3::new(T2, -H3, -W2),
+        Vec3::new(-T2, -H3, W2),
+        Vec3::new(T2, -H3, W2),
+        Vec3::new(-T2, H3, -W2),
+        Vec3::new(T2, H3, -W2),
+        Vec3::new(-T2, H3, W2),
+        Vec3::new(T2, H3, W2),
     ];
 
     const H2: f32 = 0.25;
     const BOX_LIMB: [Vec3; 8] = [
-        const_vec3!([-H3, -H2, -H2]),
-        const_vec3!([H3, -H2, -H2]),
-        const_vec3!([-H3, -H2, H2]),
-        const_vec3!([H3, -H2, H2]),
-        const_vec3!([-H3, H2, -H2]),
-        const_vec3!([H3, H2, -H2]),
-        const_vec3!([-H3, H2, H2]),
-        const_vec3!([H3, H2, H2]),
+        Vec3::new(-H3, -H2, -H2),
+        Vec3::new(H3, -H2, -H2),
+        Vec3::new(-H3, -H2, H2),
+        Vec3::new(H3, -H2, H2),
+        Vec3::new(-H3, H2, -H2),
+        Vec3::new(H3, H2, -H2),
+        Vec3::new(-H3, H2, H2),
+        Vec3::new(H3, H2, H2),
     ];
 
     let head_shape = make_cube_small();
@@ -434,14 +434,14 @@ fn add_motor_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintAren
     const L: f32 = 3.0;
     const T: f32 = 0.25;
     const BOX_BEAM: [Vec3; 8] = [
-        const_vec3!([-L, -T, -T]),
-        const_vec3!([L, -T, -T]),
-        const_vec3!([-L, -T, T]),
-        const_vec3!([L, -T, T]),
-        const_vec3!([-L, T, -T]),
-        const_vec3!([L, T, -T]),
-        const_vec3!([-L, T, T]),
-        const_vec3!([L, T, T]),
+        Vec3::new(-L, -T, -T),
+        Vec3::new(L, -T, -T),
+        Vec3::new(-L, -T, T),
+        Vec3::new(L, -T, T),
+        Vec3::new(-L, T, -T),
+        Vec3::new(L, T, -T),
+        Vec3::new(-L, T, T),
+        Vec3::new(L, T, T),
     ];
 
     let box_small = make_cube_small();
@@ -496,14 +496,14 @@ fn add_mover_constraint(bodies: &mut BodyArena, constraints: &mut ConstraintAren
     const L: f32 = 3.0;
     const T: f32 = 0.25;
     const BOX_PLATFORM: [Vec3; 8] = [
-        const_vec3!([-L, -T, -L]),
-        const_vec3!([L, -T, -L]),
-        const_vec3!([-L, -T, L]),
-        const_vec3!([L, -T, L]),
-        const_vec3!([-L, T, -L]),
-        const_vec3!([L, T, -L]),
-        const_vec3!([-L, T, L]),
-        const_vec3!([L, T, L]),
+        Vec3::new(-L, -T, -L),
+        Vec3::new(L, -T, -L),
+        Vec3::new(-L, -T, L),
+        Vec3::new(L, -T, L),
+        Vec3::new(-L, T, -L),
+        Vec3::new(L, T, -L),
+        Vec3::new(-L, T, L),
+        Vec3::new(L, T, L),
     ];
 
     let box_platform = make_box_from_points(&BOX_PLATFORM);
@@ -660,6 +660,7 @@ fn resolve_contact(bodies: &mut BodyArena, contact: &Contact) {
     }
 }
 
+#[derive(bevy_ecs::prelude::Resource)]
 pub struct PhysicsScene {
     bodies: BodyArena,
     constraints: ConstraintArena,

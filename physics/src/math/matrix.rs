@@ -77,12 +77,12 @@ impl<const M: usize, const N: usize> Default for MatMN<M, N> {
     }
 }
 
-// impl<const M: usize, const N: usize> From<[[f32; N]; M]> for MatMN<M, N> {
-//     #[inline]
-//     fn from(a: [[f32; N]; M]) -> MatMN<M, N> {
-//         MatMN { rows: a }
-//     }
-// }
+impl<const M: usize, const N: usize> From<[[f32; N]; M]> for MatMN<M, N> {
+    #[inline]
+    fn from(a: [[f32; N]; M]) -> MatMN<M, N> {
+        MatMN { rows: a.map(VecN) }
+    }
+}
 
 impl<const M: usize, const N: usize> Mul<VecN<N>> for MatMN<M, N> {
     type Output = VecN<M>;
@@ -114,7 +114,7 @@ impl<const M: usize, const P: usize, const N: usize> Mul<MatMN<P, N>> for MatMN<
 
 #[test]
 fn test_matmn() {
-    let m0 = MatMN::from(&[[1., 2.], [3., 4.], [5., 6.]]);
+    let m0 = MatMN::from([[1., 2.], [3., 4.], [5., 6.]]);
     let m1 = m0.transpose();
-    assert_eq!(m1, MatMN::from(&[[1., 3., 5.], [2., 4., 6.]]));
+    assert_eq!(m1, MatMN::from([[1., 3., 5.], [2., 4., 6.]]));
 }

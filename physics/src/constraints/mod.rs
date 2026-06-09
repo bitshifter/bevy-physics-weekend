@@ -298,16 +298,16 @@ impl ConstraintConfig {
 
     fn apply_impulses(&self, bodies: &mut BodyArena, impulses: VecN<12>) {
         {
-            let force_internal_a = Vec3::from_slice(&impulses[0..]);
-            let torque_internal_a = Vec3::from_slice(&impulses[3..]);
+            let force_internal_a = Vec3::new(impulses[0], impulses[1], impulses[2]);
+            let torque_internal_a = Vec3::new(impulses[3], impulses[4], impulses[5]);
             let body_a = bodies.get_body_mut(self.handle_a);
             body_a.apply_impulse_linear(force_internal_a);
             body_a.apply_impulse_angular(torque_internal_a);
         }
 
         {
-            let force_internal_b = Vec3::from_slice(&impulses[6..]);
-            let torque_internal_b = Vec3::from_slice(&impulses[9..]);
+            let force_internal_b = Vec3::new(impulses[6], impulses[7], impulses[8]);
+            let torque_internal_b = Vec3::new(impulses[9], impulses[10], impulses[11]);
             let body_b = bodies.get_body_mut(self.handle_b);
             body_b.apply_impulse_linear(force_internal_b);
             body_b.apply_impulse_angular(torque_internal_b);

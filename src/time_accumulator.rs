@@ -1,5 +1,6 @@
-use bevy::utils::Duration;
+use std::time::Duration;
 
+#[derive(bevy::prelude::Resource)]
 pub struct TimeAccumulator {
     accumulated_time: Duration,
     frame_number: u64,

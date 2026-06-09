@@ -20,7 +20,12 @@ impl Mat4Ext for Mat4 {
                     continue;
                 }
 
-                minor.col_mut(xx)[yy] = self.col(x)[y];
+                match xx {
+                    0 => minor.x_axis[yy] = self.col(x)[y],
+                    1 => minor.y_axis[yy] = self.col(x)[y],
+                    2 => minor.z_axis[yy] = self.col(x)[y],
+                    _ => unreachable!(),
+                }
                 xx += 1;
             }
 

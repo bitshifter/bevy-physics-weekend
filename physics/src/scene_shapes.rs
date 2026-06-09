@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use crate::shapes::{Shape, ShapeBox, ShapeConvex};
-use glam::{const_vec3, Quat, Vec3};
+use glam::{Quat, Vec3};
 use std::{
     error::Error,
     fs::File,
@@ -12,36 +12,36 @@ const W: f32 = 50.0;
 const H: f32 = 25.0;
 
 const BOX_GROUND: [Vec3; 8] = [
-    const_vec3!([-W, 0.0, -H]),
-    const_vec3!([W, 0.0, -H]),
-    const_vec3!([-W, 0.0, H]),
-    const_vec3!([W, 0.0, H]),
-    const_vec3!([-W, -1.0, -H]),
-    const_vec3!([W, -1.0, -H]),
-    const_vec3!([-W, -1.0, H]),
-    const_vec3!([W, -1.0, H]),
+    Vec3::new(-W, 0.0, -H),
+    Vec3::new(W, 0.0, -H),
+    Vec3::new(-W, 0.0, H),
+    Vec3::new(W, 0.0, H),
+    Vec3::new(-W, -1.0, -H),
+    Vec3::new(W, -1.0, -H),
+    Vec3::new(-W, -1.0, H),
+    Vec3::new(W, -1.0, H),
 ];
 
 const BOX_WALL0: [Vec3; 8] = [
-    const_vec3!([-1.0, 0.0, -H]),
-    const_vec3!([1.0, 0.0, -H]),
-    const_vec3!([-1.0, 0.0, H]),
-    const_vec3!([1.0, 0.0, H]),
-    const_vec3!([-1.0, 5.0, -H]),
-    const_vec3!([1.0, 5.0, -H]),
-    const_vec3!([-1.0, 5.0, H]),
-    const_vec3!([1.0, 5.0, H]),
+    Vec3::new(-1.0, 0.0, -H),
+    Vec3::new(1.0, 0.0, -H),
+    Vec3::new(-1.0, 0.0, H),
+    Vec3::new(1.0, 0.0, H),
+    Vec3::new(-1.0, 5.0, -H),
+    Vec3::new(1.0, 5.0, -H),
+    Vec3::new(-1.0, 5.0, H),
+    Vec3::new(1.0, 5.0, H),
 ];
 
 const BOX_WALL1: [Vec3; 8] = [
-    const_vec3!([-W, 0.0, -1.0]),
-    const_vec3!([W, 0.0, -1.0]),
-    const_vec3!([-W, 0.0, 1.0]),
-    const_vec3!([W, 0.0, 1.0]),
-    const_vec3!([-W, 5.0, -1.0]),
-    const_vec3!([W, 5.0, -1.0]),
-    const_vec3!([-W, 5.0, 1.0]),
-    const_vec3!([W, 5.0, 1.0]),
+    Vec3::new(-W, 0.0, -1.0),
+    Vec3::new(W, 0.0, -1.0),
+    Vec3::new(-W, 0.0, 1.0),
+    Vec3::new(W, 0.0, 1.0),
+    Vec3::new(-W, 5.0, -1.0),
+    Vec3::new(W, 5.0, -1.0),
+    Vec3::new(-W, 5.0, 1.0),
+    Vec3::new(W, 5.0, 1.0),
 ];
 
 #[allow(dead_code)]

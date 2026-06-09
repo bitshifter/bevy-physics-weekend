@@ -1,13 +1,7 @@
 mod render;
 mod time_accumulator;
 
-use bevy::{
-    prelude::*,
-    render::{
-        pipeline::{PipelineDescriptor, RenderPipeline},
-        shader::ShaderStages,
-    },
-};
+use bevy::prelude::*;
 
 use bevy_flycam::PlayerPlugin;
 use physics::{body::BodyHandle, scene::PhysicsScene};
@@ -15,22 +9,21 @@ use std::borrow::Borrow;
 use time_accumulator::TimeAccumulator;
 
 fn physics_update_system(
-    keys: Res<Input<KeyCode>>,
+    keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     mut accum: ResMut<TimeAccumulator>,
     mut scene: ResMut<PhysicsScene>,
 ) {
-    // T pauses the sim
-    if keys.just_released(KeyCode::T) {
+    if keys.just_released(KeyCode::KeyT) {
         scene.paused = !scene.paused;
     }
 
     let mut dilation_change = None;
-    if keys.just_released(KeyCode::LBracket) {
+    if keys.just_released(KeyCode::BracketLeft) {
         dilation_change = Some(accum.time_dilation() * 0.5);
     }
 
-    if keys.just_released(KeyCode::RBracket) {
+    if keys.just_released(KeyCode::BracketRight) {
         dilation_change = Some(accum.time_dilation() * 2.0);
     }
 
@@ -47,8 +40,7 @@ fn physics_update_system(
     accum.update(delta);
 
     let num_steps = if scene.paused {
-        // y substeps when paused
-        if keys.just_released(KeyCode::Y) {
+        if keys.just_released(KeyCode::KeyY) {
             1
         } else {
             0
@@ -57,14 +49,12 @@ fn physics_update_system(
         accum.num_steps()
     };
 
-    // R resets the scene
-    if keys.just_released(KeyCode::R) {
+    if keys.just_released(KeyCode::KeyR) {
         scene.reset();
     }
 
     let step_secs = accum.step_secs();
     for _ in 0..num_steps {
-        // the game physics weekend application is doing 2 sub steps
         for _ in 0..2 {
             scene.update(step_secs * 0.5);
         }
@@ -84,55 +74,48 @@ fn copy_transforms_system(
 
 fn setup_rendering(
     mut commands: Commands,
-    asset_server: ResMut<AssetServer>,
-    mut pipelines: ResMut<Assets<PipelineDescriptor>>,
     mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
     physics_scene: Res<PhysicsScene>,
 ) {
-    // watch for changes
-    asset_server.watch_for_changes().unwrap();
-
-    // Create a new shader pipeline
-    let pipeline_handle = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
-        vertex: asset_server.load::<Shader, _>("shaders/checkerboard.vert"),
-        fragment: Some(asset_server.load::<Shader, _>("shaders/checkerboard.frag")),
-    }));
-
-    commands.spawn_bundle(LightBundle {
-        light: Light {
-            fov: f32::to_radians(75.0),
-            ..Light::default()
+    commands.spawn((
+        PointLight {
+            intensity: 100_000.0,
+            shadows_enabled: true,
+            ..Default::default()
         },
-        transform: Transform::from_translation(Vec3::new(4.0, 8.0, 4.0)),
-        ..Default::default()
-    });
+        Transform::from_translation(Vec3::new(4.0, 8.0, 4.0)),
+    ));
 
     for &body_handle in physics_scene.iter_body_handles() {
         let body = physics_scene.get_body(body_handle);
-        // let base_color = Color::rgb(color.x, color.y, color.z);
         let mesh = meshes.add(render::create_mesh_from_shape(body.shape.borrow()));
+        let color = Color::srgb(
+            (body_handle.0 as f32 * 0.5).fract(),
+            (body_handle.0 as f32 * 0.7).fract(),
+            (body_handle.0 as f32 * 0.3).fract(),
+        );
         commands
-            .spawn_bundle(PbrBundle {
-                mesh,
-                render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(
-                    pipeline_handle.clone(),
-                )]),
-                ..Default::default()
-            })
-            // .insert(material)
+            .spawn((
+                Mesh3d(mesh),
+                MeshMaterial3d(materials.add(StandardMaterial {
+                    base_color: color,
+                    ..Default::default()
+                })),
+                Transform::default(),
+                Visibility::default(),
+            ))
             .insert(body_handle);
     }
 }
 
 fn main() {
-    App::build()
-        .insert_resource(Msaa { samples: 4 })
+    App::new()
         .insert_resource(PhysicsScene::new())
         .insert_resource(TimeAccumulator::new())
         .add_plugins(DefaultPlugins)
-        .add_plugin(PlayerPlugin)
-        .add_startup_system(setup_rendering.system())
-        .add_system(physics_update_system.system())
-        .add_system(copy_transforms_system.system())
+        .add_plugins(PlayerPlugin)
+        .add_systems(Startup, setup_rendering)
+        .add_systems(Update, (physics_update_system, copy_transforms_system))
         .run();
 }

@@ -1,7 +1,7 @@
 use crate::shapes::Shape;
 use glam::{Mat3, Quat, Vec3};
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, bevy_ecs::prelude::Component)]
 pub struct BodyHandle(pub u32);
 
 impl Default for BodyHandle {

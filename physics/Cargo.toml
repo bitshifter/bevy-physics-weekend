@@ -2,10 +2,11 @@
 name = "physics"
 version = "0.1.0"
 authors = ["Cameron Hart <cameron.hart@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
-glam = { git = "https://github.com/bitshifter/glam-rs", features = ["serde", "debug-glam-assert"] }
+bevy_ecs = "0.18"
+glam = { version = "0.30", features = ["serde"] }
 rand = "0.8"
 rand_pcg = "0.3"
 serde = "1.0"

@@ -389,17 +389,17 @@ fn calculate_inertia_tensor(pts: &[Vec3], tris: &[Tri], cm: Vec3) -> Mat3 {
                 // Get the point relative to the center of mass
                 pt -= cm;
 
-                tensor.col_mut(0)[0] += pt.y * pt.y + pt.z * pt.z;
-                tensor.col_mut(1)[1] += pt.z * pt.z + pt.x * pt.x;
-                tensor.col_mut(2)[2] += pt.x * pt.x + pt.y * pt.y;
+                tensor.x_axis.x += pt.y * pt.y + pt.z * pt.z;
+                tensor.y_axis.y += pt.z * pt.z + pt.x * pt.x;
+                tensor.z_axis.z += pt.x * pt.x + pt.y * pt.y;
 
-                tensor.col_mut(0)[1] += -pt.x * pt.y;
-                tensor.col_mut(0)[2] += -pt.x * pt.z;
-                tensor.col_mut(1)[2] += -pt.y * pt.z;
+                tensor.x_axis.y += -pt.x * pt.y;
+                tensor.x_axis.z += -pt.x * pt.z;
+                tensor.y_axis.z += -pt.y * pt.z;
 
-                tensor.col_mut(1)[0] += -pt.x * pt.y;
-                tensor.col_mut(2)[0] += -pt.x * pt.z;
-                tensor.col_mut(2)[1] += -pt.y * pt.z;
+                tensor.y_axis.x += -pt.x * pt.y;
+                tensor.z_axis.x += -pt.x * pt.z;
+                tensor.z_axis.y += -pt.y * pt.z;
 
                 sample_count += 1;
             }
@@ -455,17 +455,17 @@ fn calculate_inertia_tensor_monte_carlo(pts: &[Vec3], tris: &[Tri], cm: Vec3) ->
         // get the point relative to the center of mass
         pt -= cm;
 
-        tensor.col_mut(0)[0] += pt.y * pt.y + pt.z * pt.z;
-        tensor.col_mut(1)[1] += pt.z * pt.z + pt.x * pt.x;
-        tensor.col_mut(2)[2] += pt.x * pt.x + pt.y * pt.y;
+        tensor.x_axis.x += pt.y * pt.y + pt.z * pt.z;
+        tensor.y_axis.y += pt.z * pt.z + pt.x * pt.x;
+        tensor.z_axis.z += pt.x * pt.x + pt.y * pt.y;
 
-        tensor.col_mut(0)[1] += -1.0 * pt.x * pt.y;
-        tensor.col_mut(0)[2] += -1.0 * pt.x * pt.z;
-        tensor.col_mut(1)[2] += -1.0 * pt.y * pt.z;
+        tensor.x_axis.y += -1.0 * pt.x * pt.y;
+        tensor.x_axis.z += -1.0 * pt.x * pt.z;
+        tensor.y_axis.z += -1.0 * pt.y * pt.z;
 
-        tensor.col_mut(1)[0] += -1.0 * pt.x * pt.y;
-        tensor.col_mut(2)[0] += -1.0 * pt.x * pt.z;
-        tensor.col_mut(2)[1] += -1.0 * pt.y * pt.z;
+        tensor.y_axis.x += -1.0 * pt.x * pt.y;
+        tensor.z_axis.x += -1.0 * pt.x * pt.z;
+        tensor.z_axis.y += -1.0 * pt.y * pt.z;
 
         sample_count += 1;
     }
