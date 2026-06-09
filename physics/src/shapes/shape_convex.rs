@@ -410,7 +410,7 @@ fn calculate_inertia_tensor(pts: &[Vec3], tris: &[Tri], cm: Vec3) -> Mat3 {
 }
 
 fn calculate_center_of_mass_monte_carlo(pts: &[Vec3], tris: &[Tri]) -> Vec3 {
-    use rand::{Rng, SeedableRng};
+    use rand::{RngExt, SeedableRng};
     let mut rng = rand::rngs::StdRng::seed_from_u64(rand::random());
 
     const NUM_SAMPLES: usize = 10000;
@@ -435,7 +435,7 @@ fn calculate_center_of_mass_monte_carlo(pts: &[Vec3], tris: &[Tri]) -> Vec3 {
 }
 
 fn calculate_inertia_tensor_monte_carlo(pts: &[Vec3], tris: &[Tri], cm: Vec3) -> Mat3 {
-    use rand::{Rng, SeedableRng};
+    use rand::{RngExt, SeedableRng};
     let mut rng = rand::rngs::StdRng::seed_from_u64(rand::random());
 
     const NUM_SAMPLES: usize = 10000;

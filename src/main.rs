@@ -5,8 +5,8 @@ mod time_accumulator;
 use std::borrow::Borrow;
 use std::ops::{Deref, DerefMut};
 
+use bevy::camera_controller::free_camera::{FreeCamera, FreeCameraPlugin};
 use bevy::prelude::*;
-use bevy_flycam::PlayerPlugin;
 use checkerboard_material::CheckerboardMaterial;
 use physics::{body::BodyHandle, scene::PhysicsScene};
 use time_accumulator::TimeAccumulator;
@@ -102,9 +102,24 @@ fn setup_rendering(
     physics_scene: Res<PhysicsSceneResource>,
 ) {
     commands.spawn((
+        Camera3d::default(),
+        FreeCamera {
+            key_up: KeyCode::Space,
+            key_down: KeyCode::ShiftLeft,
+            key_run: KeyCode::ControlLeft,
+            keyboard_key_toggle_cursor_grab: KeyCode::Escape,
+
+            sensitivity: 0.5,
+            walk_speed: 10.0,
+            run_speed: 30.0,
+            ..Default::default()
+        },
+        Transform::from_translation(Vec3::new(-10.0, 5.0, 10.0)).looking_at(Vec3::ZERO, Vec3::Y),
+    ));
+    commands.spawn((
         PointLight {
             intensity: 100_000.0,
-            shadows_enabled: true,
+            shadow_maps_enabled: true,
             ..Default::default()
         },
         Transform::from_translation(Vec3::new(4.0, 8.0, 4.0)),
@@ -130,7 +145,7 @@ fn main() {
         .insert_resource(TimeAccumulator::new())
         .add_plugins(DefaultPlugins)
         .add_plugins(MaterialPlugin::<CheckerboardMaterial>::default())
-        .add_plugins(PlayerPlugin)
+        .add_plugins(FreeCameraPlugin)
         .add_systems(Startup, setup_rendering)
         .add_systems(Update, (physics_update_system, copy_transforms_system))
         .run();
