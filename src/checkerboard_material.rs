@@ -22,6 +22,10 @@ impl Default for CheckerboardMaterial {
 }
 
 impl Material for CheckerboardMaterial {
+    fn vertex_shader() -> ShaderRef {
+        "shaders/checkerboard_vertex.wgsl".into()
+    }
+
     fn fragment_shader() -> ShaderRef {
         "shaders/checkerboard.wgsl".into()
     }

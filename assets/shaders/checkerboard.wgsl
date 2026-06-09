@@ -1,9 +1,13 @@
-#import bevy_pbr::forward_io::VertexOutput
+struct FragmentInput {
+    @location(1) world_normal: vec3<f32>,
+    @location(8) local_position: vec3<f32>,
+    @location(9) local_normal: vec3<f32>,
+}
 
-fn get_color_from_position_and_normal(world_position: vec3<f32>, normal: vec3<f32>) -> vec3<f32> {
+fn get_color_from_position_and_normal(local_position: vec3<f32>, normal: vec3<f32>) -> vec3<f32> {
     let pi = 3.141519;
-    let scaled_pos = world_position * pi * 2.0;
-    let scaled_pos2 = world_position * pi * 2.0 / 10.0 + vec3<f32>(pi / 4.0);
+    let scaled_pos = local_position * pi * 2.0;
+    let scaled_pos2 = local_position * pi * 2.0 / 10.0 + vec3<f32>(pi / 4.0);
     let s = cos(scaled_pos2.x) * cos(scaled_pos2.y) * cos(scaled_pos2.z);
     let t = cos(scaled_pos.x) * cos(scaled_pos.y) * cos(scaled_pos.z);
 
@@ -24,7 +28,7 @@ fn get_color_from_position_and_normal(world_position: vec3<f32>, normal: vec3<f3
 }
 
 @fragment
-fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
+fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
     let dir_to_light = normalize(vec3<f32>(1.0, 1.0, 1.0));
 
     let dx = 0.25;
@@ -36,10 +40,10 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         var x = 0.0;
         loop {
             if x >= 1.0 { break; }
-            let sample_pos = in.world_position.xyz
-                + dpdx(in.world_position).xyz * x
-                + dpdy(in.world_position).xyz * y;
-            color_mul += get_color_from_position_and_normal(sample_pos, in.world_normal) * dx * dy;
+            let sample_pos = in.local_position
+                + dpdx(in.local_position) * x
+                + dpdy(in.local_position) * y;
+            color_mul += get_color_from_position_and_normal(sample_pos, in.local_normal) * dx * dy;
             x += dx;
         }
         y += dy;
