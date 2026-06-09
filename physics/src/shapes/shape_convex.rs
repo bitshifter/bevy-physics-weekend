@@ -411,7 +411,7 @@ fn calculate_inertia_tensor(pts: &[Vec3], tris: &[Tri], cm: Vec3) -> Mat3 {
 
 fn calculate_center_of_mass_monte_carlo(pts: &[Vec3], tris: &[Tri]) -> Vec3 {
     use rand::{Rng, SeedableRng};
-    let mut rng = rand_pcg::Pcg32::seed_from_u64(rand::random());
+    let mut rng = rand::rngs::StdRng::seed_from_u64(rand::random());
 
     const NUM_SAMPLES: usize = 10000;
 
@@ -420,7 +420,7 @@ fn calculate_center_of_mass_monte_carlo(pts: &[Vec3], tris: &[Tri]) -> Vec3 {
     let mut cm = Vec3::ZERO;
     let mut sample_count = 0;
     for _ in 0..NUM_SAMPLES {
-        let rand3 = Vec3::new(rng.gen(), rng.gen(), rng.gen());
+        let rand3: Vec3 = rng.random();
         let pt = bounds.mins + rand3 * bounds.width();
 
         if is_external(pts, tris, pt) {
@@ -436,7 +436,7 @@ fn calculate_center_of_mass_monte_carlo(pts: &[Vec3], tris: &[Tri]) -> Vec3 {
 
 fn calculate_inertia_tensor_monte_carlo(pts: &[Vec3], tris: &[Tri], cm: Vec3) -> Mat3 {
     use rand::{Rng, SeedableRng};
-    let mut rng = rand_pcg::Pcg32::seed_from_u64(rand::random());
+    let mut rng = rand::rngs::StdRng::seed_from_u64(rand::random());
 
     const NUM_SAMPLES: usize = 10000;
 
@@ -445,7 +445,7 @@ fn calculate_inertia_tensor_monte_carlo(pts: &[Vec3], tris: &[Tri], cm: Vec3) ->
     let mut tensor = Mat3::ZERO;
     let mut sample_count = 0;
     for _ in 0..NUM_SAMPLES {
-        let rand3 = Vec3::new(rng.gen(), rng.gen(), rng.gen());
+        let rand3: Vec3 = rng.random();
         let mut pt = bounds.mins + rand3 * bounds.width();
 
         if is_external(pts, tris, pt) {
