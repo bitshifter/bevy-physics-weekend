@@ -1,3 +1,4 @@
+mod checkerboard_material;
 mod render;
 mod time_accumulator;
 
@@ -6,6 +7,7 @@ use std::ops::{Deref, DerefMut};
 
 use bevy::prelude::*;
 use bevy_flycam::PlayerPlugin;
+use checkerboard_material::CheckerboardMaterial;
 use physics::{body::BodyHandle, scene::PhysicsScene};
 use time_accumulator::TimeAccumulator;
 
@@ -96,7 +98,7 @@ fn copy_transforms_system(
 fn setup_rendering(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut materials: ResMut<Assets<CheckerboardMaterial>>,
     physics_scene: Res<PhysicsSceneResource>,
 ) {
     commands.spawn((
@@ -111,18 +113,10 @@ fn setup_rendering(
     for &body_handle in physics_scene.iter_body_handles() {
         let body = physics_scene.get_body(body_handle);
         let mesh = meshes.add(render::create_mesh_from_shape(body.shape.borrow()));
-        let color = Color::srgb(
-            (body_handle.0 as f32 * 0.5).fract(),
-            (body_handle.0 as f32 * 0.7).fract(),
-            (body_handle.0 as f32 * 0.3).fract(),
-        );
         commands
             .spawn((
                 Mesh3d(mesh),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: color,
-                    ..Default::default()
-                })),
+                MeshMaterial3d(materials.add(CheckerboardMaterial::new())),
                 Transform::default(),
                 Visibility::default(),
             ))
@@ -135,6 +129,7 @@ fn main() {
         .insert_resource(PhysicsSceneResource(PhysicsScene::new()))
         .insert_resource(TimeAccumulator::new())
         .add_plugins(DefaultPlugins)
+        .add_plugins(MaterialPlugin::<CheckerboardMaterial>::default())
         .add_plugins(PlayerPlugin)
         .add_systems(Startup, setup_rendering)
         .add_systems(Update, (physics_update_system, copy_transforms_system))
