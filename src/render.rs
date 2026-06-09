@@ -1,5 +1,5 @@
 use bevy::{asset::RenderAssetUsages, prelude::*};
-use bevy_mesh::{Indices, PrimitiveTopology};
+use bevy_mesh::{Indices, PrimitiveTopology, VertexAttributeValues};
 use physics::shapes::{build_convex_hull, Shape, ShapeConvex};
 
 fn create_mesh_from_convex_shape(convex_shape: &ShapeConvex) -> Mesh {
@@ -61,7 +61,20 @@ pub fn create_mesh_from_shape(shape: &Shape) -> Mesh {
             let bounds = box_shape.bounds;
             let min = Vec3::new(bounds.mins.x, bounds.mins.y, bounds.mins.z);
             let max = Vec3::new(bounds.maxs.x, bounds.maxs.y, bounds.maxs.z);
-            Mesh::from(Cuboid::from_corners(min, max))
+            let size = max - min;
+            let center = (min + max) / 2.0;
+            let mut mesh = Mesh::from(Cuboid::from_size(size));
+            // Offset vertices so the box sits at its absolute world-space position (Cuboid::from_size centers at origin)
+            if let Some(VertexAttributeValues::Float32x3(ref mut positions)) =
+                mesh.attribute_mut(Mesh::ATTRIBUTE_POSITION)
+            {
+                for pos in positions.iter_mut() {
+                    pos[0] += center.x;
+                    pos[1] += center.y;
+                    pos[2] += center.z;
+                }
+            }
+            mesh
         }
         Shape::Convex(convex_shape) => create_mesh_from_convex_shape(convex_shape),
     }
