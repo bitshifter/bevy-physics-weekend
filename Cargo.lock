@@ -3859,7 +3859,6 @@ dependencies = [
 name = "physics"
 version = "0.1.0"
 dependencies = [
- "bevy_ecs",
  "glam",
  "rand 0.8.4",
  "rand_pcg",

@@ -1,18 +1,39 @@
 mod render;
 mod time_accumulator;
 
-use bevy::prelude::*;
+use std::borrow::Borrow;
+use std::ops::{Deref, DerefMut};
 
+use bevy::prelude::*;
 use bevy_flycam::PlayerPlugin;
 use physics::{body::BodyHandle, scene::PhysicsScene};
-use std::borrow::Borrow;
 use time_accumulator::TimeAccumulator;
+
+#[derive(Resource)]
+struct PhysicsSceneResource(PhysicsScene);
+
+impl Deref for PhysicsSceneResource {
+    type Target = PhysicsScene;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for PhysicsSceneResource {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+#[derive(Component)]
+struct BodyHandleComponent(BodyHandle);
 
 fn physics_update_system(
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     mut accum: ResMut<TimeAccumulator>,
-    mut scene: ResMut<PhysicsScene>,
+    mut scene: ResMut<PhysicsSceneResource>,
 ) {
     if keys.just_released(KeyCode::KeyT) {
         scene.paused = !scene.paused;
@@ -62,11 +83,11 @@ fn physics_update_system(
 }
 
 fn copy_transforms_system(
-    physics_scene: Res<PhysicsScene>,
-    mut query: Query<(&BodyHandle, &mut Transform)>,
+    physics_scene: Res<PhysicsSceneResource>,
+    mut query: Query<(&BodyHandleComponent, &mut Transform)>,
 ) {
-    for (&body_handle, mut transform) in query.iter_mut() {
-        let body = physics_scene.get_body(body_handle);
+    for (body_handle, mut transform) in query.iter_mut() {
+        let body = physics_scene.get_body(body_handle.0);
         transform.translation = body.position;
         transform.rotation = body.orientation;
     }
@@ -76,7 +97,7 @@ fn setup_rendering(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    physics_scene: Res<PhysicsScene>,
+    physics_scene: Res<PhysicsSceneResource>,
 ) {
     commands.spawn((
         PointLight {
@@ -105,13 +126,13 @@ fn setup_rendering(
                 Transform::default(),
                 Visibility::default(),
             ))
-            .insert(body_handle);
+            .insert(BodyHandleComponent(body_handle));
     }
 }
 
 fn main() {
     App::new()
-        .insert_resource(PhysicsScene::new())
+        .insert_resource(PhysicsSceneResource(PhysicsScene::new()))
         .insert_resource(TimeAccumulator::new())
         .add_plugins(DefaultPlugins)
         .add_plugins(PlayerPlugin)

@@ -660,7 +660,6 @@ fn resolve_contact(bodies: &mut BodyArena, contact: &Contact) {
     }
 }
 
-#[derive(bevy_ecs::prelude::Resource)]
 pub struct PhysicsScene {
     bodies: BodyArena,
     constraints: ConstraintArena,
