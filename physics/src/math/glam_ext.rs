@@ -1,41 +1,12 @@
 use glam::{Mat3, Mat4};
 
 pub trait Mat4Ext {
-    fn minor(&self, i: usize, j: usize) -> Mat3;
     fn cofactor(&self, i: usize, j: usize) -> f32;
 }
 
 impl Mat4Ext for Mat4 {
-    fn minor(&self, i: usize, j: usize) -> Mat3 {
-        let mut minor = Mat3::ZERO;
-        let mut yy = 0;
-        for y in 0..4 {
-            if y == j {
-                continue;
-            }
-
-            let mut xx = 0;
-            for x in 0..4 {
-                if x == i {
-                    continue;
-                }
-
-                match xx {
-                    0 => minor.x_axis[yy] = self.col(x)[y],
-                    1 => minor.y_axis[yy] = self.col(x)[y],
-                    2 => minor.z_axis[yy] = self.col(x)[y],
-                    _ => unreachable!(),
-                }
-                xx += 1;
-            }
-
-            yy += 1;
-        }
-        minor
-    }
-
     fn cofactor(&self, i: usize, j: usize) -> f32 {
-        let minor = self.minor(i, j);
+        let minor = Mat3::from_mat4_minor(*self, i, j);
         i32::pow(-1, (i + 1 + j + 1) as u32) as f32 * minor.determinant()
     }
 }

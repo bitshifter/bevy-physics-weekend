@@ -24,10 +24,10 @@ fn create_mesh_from_convex_shape(convex_shape: &ShapeConvex) -> Mesh {
             n += ab.cross(ac);
         }
 
-        normals.push(n.normalize().into());
+        normals.push(n.normalize().to_array());
     }
 
-    let positions: Vec<[f32; 3]> = hull_pts.iter().map(|pt| (*pt).into()).collect();
+    let positions: Vec<[f32; 3]> = hull_pts.iter().map(|pt| pt.to_array()).collect();
 
     let mut indices = Vec::with_capacity(hull_tris.len() * 3);
     for tri in &hull_tris {

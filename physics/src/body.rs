@@ -227,10 +227,7 @@ impl Body {
 
         // clamp angular_velocity - 30 rad/s is fast enough for us
         const MAX_ANGULAR_SPEED: f32 = 30.0;
-        const MAX_ANGULAR_SPEED_SQ: f32 = MAX_ANGULAR_SPEED * MAX_ANGULAR_SPEED;
-        if self.angular_velocity.length_squared() > MAX_ANGULAR_SPEED_SQ {
-            self.angular_velocity = self.angular_velocity.normalize() * MAX_ANGULAR_SPEED;
-        }
+        self.angular_velocity = self.angular_velocity.clamp_length_max(MAX_ANGULAR_SPEED);
     }
 
     pub fn apply_impulse_linear(&mut self, impulse: Vec3) {
@@ -267,11 +264,9 @@ impl Body {
         self.angular_velocity += alpha * delta_seconds;
 
         // update orientation
-        let d_angle = self.angular_velocity * delta_seconds;
-        let angle = d_angle.length();
-        let rcp_angle = angle.recip();
-        let dq = if rcp_angle.is_finite() {
-            Quat::from_axis_angle(d_angle * rcp_angle, angle)
+        let (dir, angle) = (self.angular_velocity * delta_seconds).normalize_and_length();
+        let dq = if angle > 0.0 {
+            Quat::from_axis_angle(dir, angle)
         } else {
             Quat::IDENTITY
         };

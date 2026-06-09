@@ -11,8 +11,8 @@ pub struct Bounds {
 impl Bounds {
     pub fn new() -> Bounds {
         Bounds {
-            mins: Vec3::splat(std::f32::MAX),
-            maxs: Vec3::splat(-std::f32::MAX),
+            mins: Vec3::INFINITY,
+            maxs: Vec3::NEG_INFINITY,
         }
     }
 
